@@ -1,0 +1,2 @@
+config:
+  location: <Path to config.yml or the string "self" without the quotes>

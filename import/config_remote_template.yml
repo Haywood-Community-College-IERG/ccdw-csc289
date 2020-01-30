@@ -39,11 +39,11 @@ sql:
   create_view: ../templates/SQL_VIEW_TEMPLATE.sql
   create_view2: ../templates/SQL_VIEW2_TEMPLATE.sql
   create_keys: ../templates/SQL_PRIMARY_KEY_TEMPLATE.sql
-
+                          
 # Define informer specific parameters
-informer:
+informer:                 
   # Full path to root path where export files are located
-  export_path: K:/DW/
+  export_path: K:/DW/     
   export_path_wStatus: K:/DW___wStatus/
   export_path_meta: K:/META/
   log_path: ./log/
@@ -55,11 +55,14 @@ informer:
   invalid_path_wStatus: ../archive/wStatus_INVALID/
   archive_type: move # Can be move or zip
 
-  ###
-  ### You should not have to change the following items
+  ###           
+  ### You should not have to change the :following items
   ###
   
   # Prefix for all informer reports
   prefix: DW_
   # The latest version of reports that appear in the above location
   latest_version: 1001
+
+config:
+  location: self
