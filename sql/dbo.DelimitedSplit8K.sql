@@ -1,4 +1,7 @@
-CREATE FUNCTION [dbo].[DelimitedSplit8K]
+USE CCDW
+GO
+
+CREATE FUNCTION [util].[DelimitedSplit8K]
 --===== Define I/O parameters
         (@pString VARCHAR(8000), @pDelimiter CHAR(2)) -- Was originally CHAR(1), changed to CHAR(2) for Unidata MV -- DMO 20170824
 --WARNING!!! DO NOT USE MAX DATA-TYPES HERE!  IT WILL KILL PERFORMANCE!

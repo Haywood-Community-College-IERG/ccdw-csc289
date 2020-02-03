@@ -262,7 +262,7 @@ def executeSQL_MERGE(engine, df, sqlName, dTyper,kLister, aTypes, aNames, typers
 
                             # associationGroup = aNames[]
                             str1 += '\n, CAST(LTRIM(RTRIM(CA{0}.Item)) AS {1}) AS [{2}]'.format(counter, typers[k], k)
-                            str2 += '\n CROSS APPLY dbo.DelimitedSplit8K([{0}],\', \') CA{1}'.format(k, counter)
+                            str2 += '\n CROSS APPLY util.DelimitedSplit8K([{0}],\', \') CA{1}'.format(k, counter)
 
                             if(counter > 1):
                                 print("Counter > 1, adding comparison of 1 and {0}".format(counter))
