@@ -245,7 +245,6 @@ ModelManifest.xml
 support
 _Archive.zip
 archive/*.csv
-/data
 /data___wStatus
 /diffs
 /diffs_SAV
