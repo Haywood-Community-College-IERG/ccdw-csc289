@@ -5,16 +5,14 @@
     Using Tortoise GIT, right click in the folder where you want the CCDW folder created.
     Choose Git Clone... from the menu and enter the URL below into the URL field. Leave 
     all other defaults as they are.
-
+ 
     URL: https://github.com/haywood-ierg/ccdw-csc289
-
+ 
     The folder that is created will be referred as CCDW from now on.
-
-2. In the *setup* folder, run *Create_Folders.bat*.
-
-3. Copy the base data from the *basedata* folder into the data folder.
-
-4. In the *import* folder, copy the *config_remote_template.yml* to *config.yml* and make the following changes:
+ 
+2. Copy the base data from the *basedata* folder into the data folder.
+ 
+3. In the *import* folder, copy the *config_remote_template.yml* to *config.yml* and make the following changes:
 
     In the *sql* section, update the following items:
 
