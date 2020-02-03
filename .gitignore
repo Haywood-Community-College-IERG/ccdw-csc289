@@ -253,6 +253,8 @@ data___wStatus
 /diffs_SAV
 meta/*
 !meta/*.md
+error/*
+!error/*.md
 /temp
 /data_old
 etl
