@@ -251,8 +251,6 @@ data/*
 data___wStatus
 /diffs
 /diffs_SAV
-meta/*
-!meta/*.md
 error/*
 !error/*.md
 /temp
