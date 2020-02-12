@@ -41,28 +41,36 @@ sql:
   create_keys: ../templates/SQL_PRIMARY_KEY_TEMPLATE.sql
                           
 # Define informer specific parameters
-informer:                 
-  # Full path to root path where export files are located
-  export_path: K:/DW/     
-  export_path_wStatus: K:/DW___wStatus/
-  export_path_meta: K:/META/
-  log_path: ./log/
-  meta_custom: ./META__CUSTOM_CDD.csv
+# Define informer specific parameters
+informer:
+  export_path: ../data/
+  export_path_wStatus: ../data___wStatus/
+  export_path_meta: ../meta/
+  export_path_meta_cdd: ../meta/
 
-  # Paths for output and archive files
-  archive_path: ../archive/Source_Data/
-  archive_path_wStatus: ../archive/wStatus/
-  invalid_path_wStatus: ../archive/wStatus_INVALID/
-  archive_type: move # Can be move or zip
-
-  ###           
-  ### You should not have to change the :following items
+  ###
+  ### You should not have to change the following items
   ###
   
   # Prefix for all informer reports
   prefix: DW_
   # The latest version of reports that appear in the above location
-  latest_version: 1001
+  latest_version: 1002
+
+ccdw:
+  ccdw_path: .
+  log_path: ./log/
+  meta_custom: ./META__CUSTOM_CDD.csv
+  new_fields_fn: ./NEW_FIELDS.csv
+
+  # Paths for output and archive files
+  archive_path: ../archive/import/
+  archive_path_wStatus: ../archive/wStatus/
+  invalid_path_wStatus: ../archive/wStatus_INVALID/
+  archive_type: move # Can be move or zip
+
+  error_path: ../error/
+
 
 config:
   location: self
