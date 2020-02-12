@@ -41,7 +41,6 @@ sql:
   create_keys: ../templates/SQL_PRIMARY_KEY_TEMPLATE.sql
                           
 # Define informer specific parameters
-# Define informer specific parameters
 informer:
   export_path: ../data/
   export_path_wStatus: ../data___wStatus/
