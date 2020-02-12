@@ -241,7 +241,7 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 /import/log/log*
-/import/config.yml
+# /import/config.yml
 /import/output.txt
 support
 _Archive.zip
