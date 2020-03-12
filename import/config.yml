@@ -13,9 +13,9 @@ school:
 # Define database specific parameters
 sql:
   # Name of the database server
-  server: ccdw.yourschool.edu
+  server: csc289in1srv
   # Name of the database on the above server
-  db: CCDW_DEV
+  db: CCDW
   # Driver for ODBC connections
   driver: ODBC Driver 13 for SQL Server
 
