@@ -102,16 +102,20 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log):
 # executeSQL_MERGE() - Creates SQL Code based on current Table/Dataframe by using a Template then pushes to History
 # @ logger.catch
 def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, log):
-    # Create String to pass to Template file to generate SQL Code
-    TableKeys= list(keyListDict.keys()) 
+    
+    # Get a list of all the keys for this table
+    TableKeys = list(keyListDict.keys()) 
 
     logger.debug( "Create blank dataframe for output\n" )    
 
     # Create and push a blankFrame with no data to SQL Database for History Tables
     blankFrame = pd.DataFrame(columns=df.columns)
+    # History does not use DataDatetime, so delete that
     del blankFrame['DataDatetime']
 
-    TableColumns= list(blankFrame.columns) 
+    # Get a list of all the columns in this table. 
+    # This is needed for the template below.
+    TableColumns = list(blankFrame.columns) 
     
     # Add three History columns to blankFrame
     blankFrame['EffectiveDatetime'] = ""
@@ -124,10 +128,12 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
     blankTyper['ExpirationDatetime'] = sqlalchemy.types.DateTime()
     blankTyper['CurrentFlag'] = sqlalchemy.types.String(1)
 
-    viewColumns= list(blankFrame.columns) 
+    # Get a list of all the columns in the table.
+    # We need this below.
+    viewColumns = list(blankFrame.columns) 
     
      # We are treating all non-key columns as Type 2 SCD at this time (20170721)
-    TableColumns2= TableColumns 
+    TableColumns2 = TableColumns 
     TableDefaultDate = min(df['DataDatetime'])
     
     flds = {'TableSchema_SRC'      : sql_schema, 
@@ -138,9 +144,9 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
             'TableKeys_CMP'        : ' AND '.join("DEST.[{0}] = SRC.[{0}]".format(k) for k in TableKeys),
             'TableKeys_SRC'        : ', '.join("SRC.[{0}]".format(k) for k in TableKeys),
             'TableColumns_SRC'     : ', '.join("SRC.[{0}]".format(c) for c in TableColumns),
-            'TableColumns1_SRC'    : ', '.join([]),
-            'TableColumns1_DEST'   : ', '.join([]),
-            'TableColumns1_UPDATE' : ', '.join([]),
+            'TableColumns1_SRC'    : ', '.join([]), # There are no Type 1 SCD at this time
+            'TableColumns1_DEST'   : ', '.join([]), # There are no Type 1 SCD at this time
+            'TableColumns1_UPDATE' : ', '.join([]), # There are no Type 1 SCD at this time
             'TableColumns2_SRC'    : ', '.join("SRC.[{0}]".format(c) for c in TableColumns2),
             'TableColumns2_DEST'   : ', '.join("DEST.[{0}]".format(c) for c in TableColumns2),
             'TableDefaultDate'     : TableDefaultDate,
@@ -186,7 +192,7 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
             break
 
         else:
-            #if it is the first time the history table is created then create a view as well
+            # If it is the first time the history table is created then create a view as well
             try:
                 logger.debug('--Creating History Keys')
 
@@ -199,9 +205,11 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
                     elif type(dataTypesDict[i]) == sqlalchemy.sql.sqltypes.Date:
                         data = 'DATE'
 
+                    # Need to convert this to using templates
                     notNull = 'ALTER TABLE {0}.{1}\n ALTER COLUMN [{2}] {3} NOT NULL; COMMIT'.format(sql_schema_history,sqlName,i,data)
                     engine.execute(notNull)
 
+                # Need to convert this to using templates
                 notNull = 'ALTER TABLE {0}.{1}\n ALTER COLUMN [{2}] {3} NOT NULL; COMMIT'.format(sql_schema_history,sqlName,'EffectiveDatetime','DATETIME')
                 engine.execute(notNull)
 
