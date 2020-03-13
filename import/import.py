@@ -76,7 +76,6 @@ keyList, dataTypes, dataTypeMV, elementAssocTypes, elementAssocNames = meta.getD
 
 # Push the 'school' section of the configuration to SQL Server, if requested
 if updateConfig:
-    #print("Update configuration")
     logger.info("Update configuration")
     school = cfg['school']
     schooldf = pd.DataFrame(school, index = ['config'])
