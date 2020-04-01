@@ -137,7 +137,7 @@ if wStatus:
                 del keyListDict[key]
 
         try:
-            export.executeSQL_UPDATE(engine, df, fn, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, log)
+            export.executeSQL_UPDATE(engine, df, fn, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, logger)
 
             # Define and create the directory for all the output files
             # directory = '{path}/{folder}'.format(path=invalid_path,folder=fn)
@@ -312,7 +312,7 @@ else: # NOT wStatus
                         try:
                             logger.debug("{0} SQL_UPDATE: {1} with {2} rows".format( timestamp(), file, df.shape[0] ))
 
-                            export.executeSQL_UPDATE(engine, df, sqlName, dataTypesDict, keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, log)
+                            export.executeSQL_UPDATE(engine, df, sqlName, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, logger)
 
                             logger.debug("{0} SQL_UPDATE: {1} with {2} rows [DONE]".format( timestamp(), file, df.shape[0] ))
                         except:

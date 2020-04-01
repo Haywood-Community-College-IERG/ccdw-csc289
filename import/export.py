@@ -36,7 +36,7 @@ sql_schema = cfg['sql']['schema']
 sql_schema_history = cfg['sql']['schema_history']
 
 # executeSQL_INSERT() - attempts to create SQL code from csv files and push it to the SQL server
-# @ logger.catch
+@logger.catch
 def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log):
     
     # Create an empty dataframe for creating the table in sql server.
@@ -100,7 +100,7 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log):
         raise    
 
 # executeSQL_MERGE() - Creates SQL Code based on current Table/Dataframe by using a Template then pushes to History
-# @ logger.catch
+@logger.catch
 def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, log):
     
     # Get a list of all the keys for this table
@@ -367,7 +367,7 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
 
 
 # executeSQL_UPDATE() - calls both executeSQL_INSERT and executeSQL_MERGE in attempt to update the SQL Tables 
-# @ logger.catch
+@logger.catch
 def executeSQL_UPDATE(engine, df, sqlName, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, log):
     try:
         executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log)
