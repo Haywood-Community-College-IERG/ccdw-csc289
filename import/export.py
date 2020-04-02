@@ -37,7 +37,7 @@ sql_schema_history = cfg['sql']['schema_history']
 
 # executeSQL_INSERT() - attempts to create SQL code from csv files and push it to the SQL server
 @logger.catch
-def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log):
+def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, logger):
     
     # Create an empty dataframe for creating the table in sql server.
     try:
@@ -76,7 +76,7 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log):
     # Attempt to push the new data to the existing SQL Table.
     try:
         logger.debug("Attempt to add new columns to table in SQL Server")
-        executeSQLAppend(engine, blankFrame, sqlName, dataTypesDict, log, sql_schema)
+        executeSQLAppend(engine, blankFrame, sqlName, dataTypesDict, logger, sql_schema)
     except:
         logger.exception("Unknown error in executeSQLAppend: ",sys.exc_info()[0])
         # Write out the MERGE SQL code that failed
@@ -101,7 +101,7 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log):
 
 # executeSQL_MERGE() - Creates SQL Code based on current Table/Dataframe by using a Template then pushes to History
 @logger.catch
-def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, log):
+def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, logger):
     
     # Get a list of all the keys for this table
     TableKeys = list(keyListDict.keys()) 
@@ -331,7 +331,7 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
 
     #Attempt to push the Column data to the existing SQL Table if there are new Columns to be added.
     try:
-        executeSQLAppend(engine, blankFrame, sqlName, dataTypesDict, log, sql_schema_history)
+        executeSQLAppend(engine, blankFrame, sqlName, dataTypesDict, logger, sql_schema_history)
     except:
         logger.exception('append didnt work')
         raise
@@ -368,14 +368,14 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
 
 # executeSQL_UPDATE() - calls both executeSQL_INSERT and executeSQL_MERGE in attempt to update the SQL Tables 
 @logger.catch
-def executeSQL_UPDATE(engine, df, sqlName, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, log):
+def executeSQL_UPDATE(engine, df, sqlName, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, logger):
     try:
-        executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, log)
+        executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, logger)
     except:
         logger.exception('XXXXXXX failed on executeSQL_INSERT XXXXXXX')
         raise
     try:
-        executeSQL_MERGE(engine, df, sqlName, dataTypesDict, keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, log)
+        executeSQL_MERGE(engine, df, sqlName, dataTypesDict, keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, logger)
         pass
     except:
         logger.exception('XXXXXXX failed on executeSQL_MERGE XXXXXXX')
@@ -389,7 +389,7 @@ def ig_f(dir, files):
 
 # archive() - Archives files after they are processed
 @logger.catch
-def archive(df, subdir, file, exportPath, archivePath, log, diffs = True, createInitial = True):
+def archive(df, subdir, file, exportPath, archivePath, logger, diffs = True, createInitial = True):
     # Create the path in the archive based on the location of the CSV
     if not os.path.isdir(os.path.join(archivePath, subdir)):
         shutil.copytree(os.path.join(exportPath, subdir),os.path.join(archivePath,subdir), ignore=ig_f)
@@ -448,7 +448,7 @@ def engine( driver = cfg['sql']['driver'],
 
 # executeSQLAppend() - Attempts to execute an Append statement to the SQL Database with new Columns
 @logger.catch
-def executeSQLAppend(engine, df, sqlName, dataTypesDict, log, schema):
+def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
     TableColumns= list(df.columns) 
     newColumnCheck = False
     logger.debug('_______________________________________________________________________')
