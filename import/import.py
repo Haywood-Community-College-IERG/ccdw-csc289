@@ -218,7 +218,7 @@ if wStatus:
             csvinput.close()
 
             logger.info(".....archiving file "+file)
-            export.archive(df, "", file, export_path, archive_path, log, createInitial = True)
+            export.archive(df, "", file, export_path, archive_path, logger, createInitial = True)
 
 #
 # CSC-289 Students: This is the block of code we need to look at!
@@ -324,7 +324,7 @@ else: # NOT wStatus
                 # Finally, archive the file in the archive folder if their were no exceptions processing the file.
                 logger.debug("{0} Archive: {1}".format( timestamp(), file ))
 
-                export.archive(df, subdir, file, export_path, archive_path, log, diffs = diffs)
+                export.archive(df, subdir, file, export_path, archive_path, logger, diffs = diffs)
 
                 logger.debug("{0} Archive: {1} [DONE]".format( timestamp(), file ))
                     
