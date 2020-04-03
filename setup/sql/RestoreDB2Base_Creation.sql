@@ -1,3 +1,6 @@
+USE CCDW
+GO
+
 CREATE SCHEMA base_history
 GO                
 CREATE SCHEMA base_input

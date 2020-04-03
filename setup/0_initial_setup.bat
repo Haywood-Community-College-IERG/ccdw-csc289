@@ -5,7 +5,7 @@ IF %1.==. GOTO Help
 
 SET ServerName=%1
 
-ECHO Setting up initial databae
+ECHO Setting up initial database
 SQLCMD -S %ServerName% -Q "CREATE DATABASE CCDW"
 SQLCMD -S %ServerName% -i sql\Create_Schemas.sql > NUL
 SQLCMD -S %ServerName% -i sql\dbo.DelimitedSplit8K.sql > NUL
