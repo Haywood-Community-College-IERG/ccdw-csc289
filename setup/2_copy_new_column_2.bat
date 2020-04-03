@@ -1,0 +1,3 @@
+@ECHO OFF
+MD ..\data\COURSE_SECTIONS_1003
+COPY ..\changed_data\new_column\COURSE_SECTIONS_1003\*.* ..\data\COURSE_SECTIONS_1003

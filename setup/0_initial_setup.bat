@@ -1,11 +1,18 @@
 @ECHO OFF
 REM Need server name as first argument
 
-IF %1.==. GOTO Help
-
-SET ServerName=%1
+IF %1.==. (
+    SET ServerName=localhost
+    ECHO Using %ServerName%
+) else (
+    if [%1]==[?] (
+        GOTO Help   
+    )
+    SET ServerName=%1
+)
 
 ECHO Setting up initial database
+SQLCMD -S %ServerName% -Q "DROP DATABASE CCDW"
 SQLCMD -S %ServerName% -Q "CREATE DATABASE CCDW"
 SQLCMD -S %ServerName% -i sql\Create_Schemas.sql > NUL
 SQLCMD -S %ServerName% -i sql\dbo.DelimitedSplit8K.sql > NUL
