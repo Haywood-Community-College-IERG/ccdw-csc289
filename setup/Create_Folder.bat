@@ -1,12 +1,12 @@
 @ECHO OFF
 
-MD ..\archive
-MD ..\error
+MD ..\archive 2> NUL
+MD ..\error 2> NUL
 
-MD ..\archive\wStatus
-MD ..\archive\wStatus_INVALID
-MD ..\import\log
+MD ..\archive\wStatus 2> NUL
+MD ..\archive\wStatus_INVALID 2> NUL
+MD ..\import\log 2> NUL
 
-REM If loacl install, need these as well.
-REM MD ..\data
-REM MD ..\meta
+REM If local install, need these as well.
+MD ..\data 2> NUL
+MD ..\meta 2> NUL
