@@ -54,7 +54,7 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, logger
 
     except ValueError as er:
         # Only report an error if the error is not that the table already exists
-        if ("already exists" not in er):
+        if ("already exists" not in str(er)):
             logger.exception("ValueError on table {0}.{1} [{2}]".format(sql_schema,sqlName,er))
             raise
 
@@ -101,7 +101,7 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, logger
 
 # executeSQL_MERGE() - Creates SQL Code based on current Table/Dataframe by using a Template then pushes to History
 @logger.catch
-def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, logger):
+def executeSQL_MERGE(engine, df, sqlName, dataTypesDict, keyListDict, elementAssocTypesDict, elementAssocNamesDict, dataTypeMVDict, logger):
     
     # Get a list of all the keys for this table
     TableKeys = list(keyListDict.keys()) 
@@ -177,7 +177,7 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict,keyListDict, elementAsso
 
         except ValueError as er:
             # Only report an error if the error is not that the table already exists
-            if ("already exists" not in er):
+            if ("already exists" not in str(er)):
                 logger.exception("ValueError on table {0}.{1} [{2}]".format(sql_schema_history,sqlName,er))
                 raise
 
@@ -499,6 +499,7 @@ def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
         logger.error("-Error Updating Columns in SQL Table - ["+str(er.args[0])+"]" )
         logger.exception("Error in File: \t %s \n\n Error: %s \n\n" % (sqlName, er))
         raise
+
     if (updateColumns):
         filein = open(cfg['sql']['create_view'],"r")
         src = Template( filein.read() )

@@ -13,11 +13,11 @@ school:
 # Define database specific parameters
 sql:
   # Name of the database server
-  server: csc289in1srv
+  server: localhost
   # Name of the database on the above server
   db: CCDW
   # Driver for ODBC connections
-  driver: ODBC Driver 13 for SQL Server
+  driver: ODBC Driver 17 for SQL Server
 
   ### You should not have to change the following items
 

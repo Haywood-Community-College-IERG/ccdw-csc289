@@ -257,3 +257,4 @@ error/*
 /temp
 /data_old
 etl
+import/config.yml
