@@ -1,3 +1,4 @@
 @ECHO OFF
 MD ..\data\COURSE_SECTIONS_1002
 COPY ..\changed_data\new_column\COURSE_SECTIONS_1002\*.* ..\data\COURSE_SECTIONS_1002
+IF EXIST ..\archive\import\COURSE_SECTIONS_1002 RD /s /q ..\archive\import\COURSE_SECTIONS_1002
