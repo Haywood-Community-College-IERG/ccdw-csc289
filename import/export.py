@@ -467,7 +467,7 @@ def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
     #attemp to create a dataframe and string of columns that need to be added to SQL Server
     try:
         updateList = list(set(list(sqlRead)).symmetric_difference(set(list(df))))
-        logger.debug("new columns: {0}".updateList)
+        logger.debug("new columns: {0}".format(updateList))
         updateFrame = pd.DataFrame(columns=updateList)
         updateColumns= list(updateFrame.columns)
         updateColumns1 = ',\n\t'.join("[{0}] {1}".format(c,dataTypesDict[c]) for c in reversed(updateColumns))
