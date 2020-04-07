@@ -130,7 +130,7 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict, keyListDict, elementAss
 
     # Get a list of all the columns in the table.
     # We need this below.
-    viewColumns = list(blankFrame.columns)
+    viewColumns = list(blankFrame.columns) 
     
      # We are treating all non-key columns as Type 2 SCD at this time (20170721)
     TableColumns2 = TableColumns 
@@ -457,8 +457,7 @@ def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
     sqlRead = pd.read_sql(sqlStrings, engine)
     logger.debug('--Diff:')
     existingColumns = list(sqlRead.columns)
-    newnames = list(df.columns.difference(existingColumns))
-    #newnames = list(df[df.columns.difference(existingColumns)].columns)
+    newnames = list(df[df.columns.difference(existingColumns)].columns)
     logger.debug("Newnames = {0}".format( newnames ))
 
     if not newnames:
