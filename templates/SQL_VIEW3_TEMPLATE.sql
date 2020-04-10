@@ -1,3 +1,3 @@
 CREATE VIEW [${viewSchema}].[${viewName}] AS
-  SELECT ${TableColumns}
+  SELECT *
   FROM [${TableSchema}].[${TableName}]
