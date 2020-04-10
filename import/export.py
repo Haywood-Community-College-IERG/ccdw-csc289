@@ -501,10 +501,10 @@ def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
         raise
 
     if (updateColumns):
-        filein = open(cfg['sql']['create_view'],"r")
+        filein = open(cfg['sql']['create_view3'],"r")
         src = Template( filein.read() )
         result = src.substitute(flds)
-        dropView = 'DROP VIEW IF EXISTS %s' % (flds['viewName'])
+        dropView = 'DROP VIEW IF EXISTS %s' % (flds['viewSchema'] + "." + flds['viewName'])
         try:
             logger.debug('----Creating Current View')
             #drop sql view if exits

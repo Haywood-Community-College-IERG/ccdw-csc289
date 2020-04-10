@@ -38,6 +38,7 @@ sql:
   add_Columns: ../templates/SQL_ALTER_TEMPLATE.sql
   create_view: ../templates/SQL_VIEW_TEMPLATE.sql
   create_view2: ../templates/SQL_VIEW2_TEMPLATE.sql
+  create_view3: ../templates/SQL_VIEW3_TEMPLATE.sql
   create_keys: ../templates/SQL_PRIMARY_KEY_TEMPLATE.sql
                           
 # Define informer specific parameters
