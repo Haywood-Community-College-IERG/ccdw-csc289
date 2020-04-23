@@ -23,7 +23,7 @@ from loguru import logger
 
 import functools
 
-global newColumnCheck
+#global newColumnCheck
 global cfg
 
 import config
@@ -81,7 +81,7 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, logger
         logger.exception("Unknown error in executeSQLAppend: ",sys.exc_info()[0])
         # Write out the MERGE SQL code that failed
         ef = open('MergeError_%s.sql' % (sqlName), 'w')
-        ef.write(result)
+        #ef.write(result)
         ef.close()
         raise
 #        pass
@@ -93,6 +93,8 @@ def executeSQL_INSERT(engine, df, sqlName, dataTypesDict, dataTypeMVDict, logger
                   index=False, index_label=None, chunksize=None, dtype=dataTypesDict)
 
     except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError) as er:
+        # This is a temporary line. Needs to be for ProgrammingError ONLY!
+        logger.debug( "Error Msg: {0}".format(str(er.orig.args[1]) ) )
         logger.exception("Error in File: \t %s \n\n Error: %s \n DataTypes: %s \n\n" % (sqlName,er, dataTypesDict))
         raise
     except:
@@ -315,7 +317,6 @@ def executeSQL_MERGE(engine, df, sqlName, dataTypesDict, keyListDict, elementAss
             except:
                 logger.exception('Creating View2 failed')
                 raise
-                break
 
     try:
         logger.debug("..creating History Table")
@@ -450,7 +451,7 @@ def engine( driver = cfg['sql']['driver'],
 @logger.catch
 def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
     TableColumns= list(df.columns) 
-    newColumnCheck = False
+    #newColumnCheck = False
     logger.debug('_______________________________________________________________________')
     #create SQL string and read matching Table on the server
     sqlStrings = "SELECT * FROM {0}.{1}".format(schema, sqlName)
@@ -493,11 +494,14 @@ def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
     try:
         if(updateColumns):
             engine.execute(result)
-            newColumnCheck = True
+            #newColumnCheck = True
 
     except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError) as er:
         logger.error("-Error Updating Columns in SQL Table - ["+str(er.args[0])+"]" )
         logger.exception("Error in File: \t %s \n\n Error: %s \n\n" % (sqlName, er))
+        ef = open('MergeError_%s.sql' % (sqlName), 'w')
+        ef.write(result)
+        ef.close()
         raise
 
     if (updateColumns):
