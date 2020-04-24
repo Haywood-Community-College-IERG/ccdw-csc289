@@ -16,6 +16,9 @@ ECHO Now remove the archived files...
 IF EXIST ..\archive\import\COURSE_SECTIONS_1002 RD /s /q ..\archive\import\COURSE_SECTIONS_1002
 IF EXIST ..\archive\import\COURSE_SECTIONS_1003 RD /s /q ..\archive\import\COURSE_SECTIONS_1003
 IF EXIST ..\archive\import\NON_COURSES_1001 RD /s /q ..\archive\import\NON_COURSES_1001
+MD ..\archive\import\NON_COURSES_1001
+COPY ..\basedata\NON_COURSES_1001\NON_COURSES_1001_Initial.csv ..\archive\import\NON_COURSES_1001\NON_COURSES_1001.csv
+COPY ..\basedata\NON_COURSES_1001\NON_COURSES_1001_Initial.csv ..\archive\import\NON_COURSES_1001\NON_COURSES_1001_Initial.csv
 
 GOTO End
 

@@ -11,8 +11,8 @@ BEGIN;
 		DROP TABLE history.[ACAD_PROGRAMS]
 	IF OBJECT_ID('history.[COURSE_SECTIONS]', 'U') IS NOT NULL
 		DROP TABLE history.COURSE_SECTIONS
-	IF OBJECT_ID('history.[NON_COURSE]', 'U') IS NOT NULL
-		DROP TABLE history.NON_COURSE
+	IF OBJECT_ID('history.[NON_COURSES]', 'U') IS NOT NULL
+		DROP TABLE history.NON_COURSES
 	IF OBJECT_ID('history.[TERMS]', 'U') IS NOT NULL
 		DROP TABLE history.TERMS
 
@@ -21,8 +21,8 @@ BEGIN;
 		DROP TABLE input.[ACAD_PROGRAMS]
 	IF OBJECT_ID('input.[COURSE_SECTIONS]', 'U') IS NOT NULL
 		DROP TABLE input.COURSE_SECTIONS
-	IF OBJECT_ID('input.[NON_COURSE]', 'U') IS NOT NULL
-		DROP TABLE input.NON_COURSE
+	IF OBJECT_ID('input.[NON_COURSES]', 'U') IS NOT NULL
+		DROP TABLE input.NON_COURSES
 	IF OBJECT_ID('input.[TERMS]', 'U') IS NOT NULL
 		DROP TABLE input.TERMS
 
@@ -41,21 +41,21 @@ BEGIN;
 		DROP VIEW history.COURSE_SECTIONS__SEC_STATUSES
 	IF OBJECT_ID('history.[COURSE_SECTIONS_Current]', 'V') IS NOT NULL
 		DROP VIEW history.COURSE_SECTIONS_Current
-	IF OBJECT_ID('history.[NON_COURSE_Current]', 'V') IS NOT NULL
-		DROP VIEW history.NON_COURSE_Current
+	IF OBJECT_ID('history.[NON_COURSES_Current]', 'V') IS NOT NULL
+		DROP VIEW history.NON_COURSES_Current
 	IF OBJECT_ID('history.[TERMS_Current]', 'V') IS NOT NULL
 		DROP VIEW history.TERMS_Current
 	
 	PRINT 'Recreate history schema tables';
 	SELECT * INTO history.ACAD_PROGRAMS FROM base_history.[ACAD_PROGRAMS];
 	SELECT * INTO history.COURSE_SECTIONS FROM base_history.COURSE_SECTIONS;
-	SELECT * INTO history.NON_COURSE FROM base_history.NON_COURSE;
+	SELECT * INTO history.NON_COURSES FROM base_history.NON_COURSES;
 	SELECT * INTO history.TERMS FROM base_history.TERMS;
 
 	PRINT 'Recreate input schema tables';
 	SELECT * INTO input.ACAD_PROGRAMS FROM base_input.[ACAD_PROGRAMS];
 	SELECT * INTO input.COURSE_SECTIONS FROM base_input.COURSE_SECTIONS;
-	SELECT * INTO input.NON_COURSE FROM base_input.NON_COURSE;
+	SELECT * INTO input.NON_COURSES FROM base_input.NON_COURSES;
 	SELECT * INTO input.TERMS FROM base_input.TERMS;
 
 	PRINT 'Recreate history schema views';
