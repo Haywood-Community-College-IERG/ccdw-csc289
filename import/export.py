@@ -470,12 +470,15 @@ def executeSQLAppend(engine, df, sqlName, dataTypesDict, logger, schema):
         updateList = list(set(list(sqlRead)).symmetric_difference(set(list(df))))
         logger.debug("new columns: {0}".format(updateList))
         updateFrame = pd.DataFrame(columns=updateList)
-        updateColumns= list(updateFrame.columns)
+        updateColumns= list(updateFrame.columns)   # "_wStatus" if wStatus else ""
         updateColumns1 = ',\n\t'.join("[{0}] {1}".format(c,dataTypesDict[c]) for c in reversed(updateColumns))
+        # Replace VARCHAR with VARCHAR(MAX)
+        # Regular Expression: VARCHAR,|VARCHAR$  -> VARCHAR(MAX)
+        updateColumns1 = re.sub('VARCHAR(,)|VARCHAR($)','VARCHAR(MAX)\\1',updateColumns1)
     except:
         logger.exception('ERROR!!!!')
 
-    logger.debug(updateColumns1)
+    logger.debug("UpdateColumns1: {0}".format(updateColumns1))
     
     #create SQL File based on tempalte to ALTER current SQL Table and append new Columns
     flds = {'TableSchema'          : schema, 
