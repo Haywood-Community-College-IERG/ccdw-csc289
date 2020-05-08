@@ -260,10 +260,12 @@ etl
 import/config.yml
 .idea/workspace.xml
 .idea/workspace.xml
-import/__pycache__/export.cpython-37.pyc
+/import/__pycache__/*
 .idea/workspace.xml
-import/__pycache__/export.cpython-37.pyc
 __pycache__
 import/.vscode/launch.json
 setup/output.txt
 import/.vscode/settings.json
+/import/*.sql
+/import/.gitignore
+*.pyc

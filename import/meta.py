@@ -1,73 +1,57 @@
 import csv
 import os
 import sys
-import yaml
-import urllib
+#import yaml
+#import urllib
 import pandas as pd
 import numpy as np
 from os import path
 import glob
 import export
-import sqlalchemy
-from sqlalchemy import exc
 from loguru import logger
+import sqlalchemy
 
 import functools
 
-global cfg
-
-import config
-cfg = config.cfg 
-
 @logger.catch
-def loadLookupList(refresh=False):
-    global lookuplist 
+def loadLookupList(cfg, engine, refresh=False):
 
-    # If lookuplist exists, move along. Otherwise, create it
-    try:
-        if lookuplist.empty:
-            pass
+    # Read all files in the meta folder
+    meta_path = cfg['informer']['export_path_meta']
+    all_files = glob.glob(os.path.join(meta_path, "*_CDD*csv"))
+    df_from_each_file = (pd.read_csv(f,encoding = "ansi", dtype='str') for f in all_files)
+    lookuplist = pd.concat(df_from_each_file, ignore_index=True)
+    
+    meta_custom = cfg['ccdw']['meta_custom']
+    meta_custom_csv = pd.read_csv(meta_custom,encoding = "ansi", dtype='str')
 
-    except NameError:
-        # Read all files in the meta folder
-        meta_path = cfg['informer']['export_path_meta']
-        all_files = glob.glob(os.path.join(meta_path, "*_CDD*csv"))
-        df_from_each_file = (pd.read_csv(f,encoding = "ansi", dtype='str') for f in all_files)
-        lookuplist = pd.concat(df_from_each_file, ignore_index=True)
-        
-        meta_custom = cfg['ccdw']['meta_custom']
-        meta_custom_csv = pd.read_csv(meta_custom,encoding = "ansi", dtype='str')
+    metaList = set(meta_custom_csv['ids'].copy())
+    lookeyList = lookuplist['ids'].copy()
+    meta_custom_csv = meta_custom_csv.sort_values(by='ids')
+    delThis = [item for i, item in enumerate(lookeyList) if item in metaList]
+    delIDs = [list(lookeyList).index(item) for i,item in enumerate(delThis)]
+    meta_custom_csv.set_index('ids')
+    lookuplist.drop(delIDs,axis=0, inplace=True)
+    lookuplist = lookuplist.append(meta_custom_csv, ignore_index=True)
+    lookuplist = lookuplist.where(pd.notnull(lookuplist), None)
+    lookuplist.set_index('ids')
 
-        metaList = set(meta_custom_csv['ids'].copy())
-        lookeyList = lookuplist['ids'].copy()
-        meta_custom_csv = meta_custom_csv.sort_values(by='ids')
-        delThis = [item for i, item in enumerate(lookeyList) if item in metaList]
-        delIDs = [list(lookeyList).index(item) for i,item in enumerate(delThis)]
-        meta_custom_csv.set_index('ids')
-        lookuplist.drop(delIDs,axis=0, inplace=True)
-        lookuplist = lookuplist.append(meta_custom_csv, ignore_index=True)
-        lookuplist = lookuplist.where(pd.notnull(lookuplist), None)
-        lookuplist.set_index('ids')
-
-        if refresh:
-            logger.debug( "Update CDD in meta" )
-            cddEngine = export.engine()
-            logger.debug( "...delete old data" )
-            cddEngine.execute( 'DELETE FROM meta.CDD' )
-            logger.debug( "...push new data" )
-            lookuplist.to_sql( 'CDD', cddEngine, flavor=None, schema='meta', if_exists='append',
-                               index=False, index_label=None, chunksize=None )
-            logger.debug( "...Update CDD in meta [DONE]" )
+    if refresh:
+        logger.debug( "Update CDD in meta" )
+        logger.debug( "...delete old data" )
+        engine.execute( 'DELETE FROM meta.CDD' )
+        logger.debug( "...push new data" )
+        lookuplist.to_sql( 'CDD', engine, flavor=None, schema='meta', if_exists='append',
+                            index=False, index_label=None, chunksize=None )
+        logger.debug( "...Update CDD in meta [DONE]" )
+    
+    return(lookuplist)
 
 #loadLookupList()
 
 # Return the key(s) for the specified fle
 @logger.catch
-def getKeyFields(file=''):
-    global lookuplist
-
-    loadLookupList()
-
+def getKeyFields(cfg, engine, lookuplist, file=''):
     if file=='':
         keys = lookuplist[(lookuplist['Database Usage Type ']=='K')]
     else:
@@ -76,10 +60,7 @@ def getKeyFields(file=''):
     return(list(set(keys.ids.tolist())))
 
 @logger.catch
-def getDataTypes(file=''):
-    global lookuplist
-
-    loadLookupList()
+def getDataTypes(cfg, engine, lookuplist, file=''):
 
     if file!='':
         dtLookuplist = lookuplist[(lookuplist['Source ']==file)]
@@ -96,27 +77,22 @@ def getDataTypes(file=''):
     dataDecimalLength = dtLookuplist['Dt2 '].replace('', '0', regex=True).copy()
 
     for index, fieldDataType in enumerate(dataType):
-        dtypers = 'VARCHAR(MAX)'
+        dtypers = "VARCHAR(MAX)"
         if usageType[index] == 'A' or usageType[index] == 'Q' or usageType[index] == 'L' or usageType[index] == 'I' or usageType[index] == 'C':
-            if fieldDataType == 'S' or fieldDataType == '' or fieldDataType == None:
-                dtypers = 'VARCHAR(%s)' % (dataLength[index])
-            elif fieldDataType == 'U':
-                dtypers = 'VARCHAR(%s)' % (dataLength[index])
+            if fieldDataType == 'S' or fieldDataType == 'U' or fieldDataType == '' or fieldDataType == None:
+                dtypers = f"VARCHAR({dataLength[index]})"
             elif fieldDataType == 'T':
-                dtypers = 'TIME'
+                dtypers = "TIME"
             elif fieldDataType == 'N':
-                dtypers = 'NUMERIC(%s,%s)' % (dataLength[index], dataDecimalLength[index])
+                dtypers = f"NUMERIC({dataLength[index]}, {dataDecimalLength[index]})"
             elif fieldDataType == 'D':
-                dtypers = 'DATE'
-            elif fieldDataType == 'DT':
-                dtypers = 'DATETIME'
+                dtypers = "DATE"
+            elif fieldDataType == "DT":
+                dtypers = "DATETIME"
             dataTypeMV[index] = dtypers
             fieldDataType = sqlalchemy.types.String(None) # changed from 8000
 
-        elif fieldDataType == 'S' or fieldDataType == '' or fieldDataType == None:
-            fieldDataType = sqlalchemy.types.String(dataLength[index]) #types = sqlalchemy.types.String(8000)
-
-        elif fieldDataType == 'U':
+        elif fieldDataType == 'S' or fieldDataType == 'U' or fieldDataType == '' or fieldDataType == None:
             fieldDataType = sqlalchemy.types.String(dataLength[index]) #types = sqlalchemy.types.String(8000)
 
         elif fieldDataType == 'T':

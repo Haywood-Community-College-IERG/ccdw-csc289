@@ -1,5 +1,7 @@
 import os
+from pathlib import Path
 import glob
+from string import Template
 import sys
 import yaml
 import pandas as pd
@@ -22,11 +24,6 @@ run_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S%f")
 def timestamp():
     return( datetime.datetime.now().isoformat() )
 
-# This will import the config.py module in the current directory
-import config
-config.load_cfg()
-cfg = config.cfg 
-
 parser = argparse.ArgumentParser(description='Import CCDW data')
 parser.add_argument('--nodb', dest='writedb', action='store_false', default=True,
                     help='Do not write to database (default: write to database)')
@@ -38,6 +35,16 @@ parser.add_argument('--wStatus', dest='wStatus', action='store_true', default=Fa
                     help='Refresh table and view structures (default: don''t refresh)')
 parser.add_argument('--updateConfig', dest='updateConfig', action='store_true', default=False,
                     help='Refresh configuration in database (default: don''t refresh)')
+parser.add_argument('--outputErrorDF', dest='outputErrorDF', action='store_true', default=False,
+                    help='Output dataframes that cause errors')
+parser.add_argument('--debug', dest='debug_flag', action='store_true', default=True,
+                    help='Turn on debugging in logging output')
+parser.add_argument('--logging', dest='logger_level', default="INFO",
+                    choices=['TRACE','DEBUG','INFO','SUCCESS','WARNING','ERROR','CRITICAL'],
+                    help='Specify which level of logging to use in logging output')
+parser.add_argument('--path', dest='config_path', default=".",
+                    help='Specify the path to the config.yml file')                    
+                    
 args = parser.parse_args()
 
 writedb = args.writedb
@@ -45,6 +52,13 @@ diffs = args.diffs
 refresh = args.refresh
 wStatus = args.wStatus
 updateConfig = args.updateConfig
+outputErrorDF = args.outputErrorDF
+debug_flag = args.debug_flag
+logger_level = 'DEBUG' if debug_flag else args.logger_level
+config_path = Path(args.config_path.replace('"',"").strip()) / "config.yml"
+
+import config
+cfg = config.load_cfg(config_path)
 
 wStatus_suffix = "_wStatus" if wStatus else ""
 
@@ -55,24 +69,34 @@ log_path = cfg['ccdw']['log_path']
 
 prefix = cfg['informer']['prefix']
 
+log_level = cfg['ccdw']['log_level'].upper()
+
+if not log_level in ['TRACE','DEBUG','INFO','SUCCESS','WARNING','ERROR','CRITICAL']:
+    log_level = 'DEBUG'
+
 # We are transitioning the code from one type of logging to another. These opens both.
-logger_log = open(os.path.join(log_path,"logger.log_{0}{1}.txt".format( run_datetime, wStatus_suffix )), "w", 1)
+logger_log = open(os.path.join(log_path,f"logger.log_{run_datetime}{wStatus_suffix}.txt"), "w", 1)
 
 # Setup the new logger
 logger.remove()
 # logger.add( "logger.log_{time}{wStatus_suffix}.txt", wStatus_suffix )
-logger.add(logger_log, enqueue=True, backtrace=True, diagnose=True) # Set last 2 to False
-logger.debug( "Arguments: writedb = [{0}], diffs = [{1}], refresh = [{2}], wStatus = [{3}], updateConfig=[{4}]".format( writedb, diffs, refresh, wStatus, updateConfig ) )
+logger.add(logger_log, enqueue=True, backtrace=True, diagnose=True, level=log_level) # Set last 2 to False
+logger.debug( f"Arguments: writedb = [{writedb}], diffs = [{diffs}], refresh = [{refresh}], wStatus = [{wStatus}], updateConfig=[{updateConfig}]" )
     
 # Import other local packages
 import meta
 import export
 
+#metaObj = CCDW_Meta(cfg)
+#exportObj = CCDW_Export(cfg,metaObj,wStatus_suffix,logger)
+
 # This creates the SQL engine for pushing data to SQL Server
 engine = export.engine(cfg['sql']['driver'], cfg['sql']['server'], cfg['sql']['db'], cfg['sql']['schema'])
 
+lookuplist = meta.loadLookupList(cfg, engine)
+
 # Get the keys, data types, and associations from the metadata (see meta.py)
-keyList, dataTypes, dataTypeMV, elementAssocTypes, elementAssocNames = meta.getDataTypes()
+keyList, dataTypes, dataTypeMV, elementAssocTypes, elementAssocNames = meta.getDataTypes(cfg, engine, lookuplist)
 
 # Push the 'school' section of the configuration to SQL Server, if requested
 if updateConfig:
@@ -87,7 +111,23 @@ if updateConfig:
 #
 # CSC-289 Students: You can ignore this section as the database already exists and has been loaded. This block will never be executed during class.
 #
+
+tables_filein = open(cfg['sql']['table_names'],"r")
+tables_src = Template( tables_filein.read() )
+tables_filein.close()
+
+flds_tbl = { 'TableSchema' : "'" + cfg['sql']['schema'] + "'" }
+sql_tbl_query = tables_src.substitute(flds_tbl)
+svr_tables_input = pd.read_sql(sql_tbl_query, engine)
+svr_tables_input = np.asarray(svr_tables_input["TABLE_NAME"])
+
+flds_tbl = { 'TableSchema' : "'" + cfg['sql']['schema_history'] + "'" }
+sql_tbl_query = tables_src.substitute(flds_tbl)
+
 if wStatus:
+    svr_tables_history = pd.read_sql(sql_tbl_query, engine)
+    svr_tables_history = np.asarray(svr_tables_history["TABLE_NAME"])
+
     invalid_path = cfg['ccdw']['invalid_path_wStatus']
     
     pattern = r'{0}(?P<fnpat>.*)___.*|(?P<fnpat>.*)___.*'.format(prefix)
@@ -107,16 +147,26 @@ if wStatus:
 
     # Extract just the date and time fields
     status_datetime_fields = {}
-    date_regex = regex.compile('.*\.DATE$|.*\.TIME$')
+    date_regex = regex.compile(r'.*\.DATE$|.*\.TIME$')
     for key in status_fields.keys():
         fields = status_fields[key]
         status_datetime_fields[key] = [ f for f in fields if date_regex.match(f) ]
 
     # This function is a helper function for processing all the rows in the file for a specified date
-    def processfile(df, fn, d):
-        logger.debug("Updating fn = "+fn+", d = "+d)
+    def processfile(df, file, d):
+        logger.debug("Updating fn = {file}, d = {d}")
         columnHeaders = list(df.columns.values)
         columnArray = np.asarray(columnHeaders)
+
+        flds = {'TableSchema' : "'" + cfg['sql']['schema'] + "'", 
+                'TableName'   : file }
+
+        table_columns_filein = open(cfg['sql']['table_column_names'],"r")
+        table_columns_src = Template( table_columns_filein.read() )
+        sql_col_query = table_columns_src.substitute(flds)
+        
+        svr_columns= pd.read_sql(sql_col_query, engine)
+        svr_columns.reset_index(inplace=True)
 
         # The following makes a copy of each for the columns in this data frame
         keyListDict = {k: keyList[k] for k in keyList.keys() & columnArray}   # a dictionary of Columns and their keys
@@ -137,7 +187,12 @@ if wStatus:
                 del keyListDict[key]
 
         try:
-            export.executeSQL_UPDATE(engine, df, fn, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, logger)
+            export.executeSQL_UPDATE( engine, df, file, 
+                                      keyListDict, 
+                                      dataTypesDict, dataTypeMVDict, 
+                                      elementAssocTypesDict, elementAssocNamesDict,
+                                      svr_tables_input, svr_tables_history, svr_columns, 
+                                      logger, cfg )
 
             # Define and create the directory for all the output files
             # directory = '{path}/{folder}'.format(path=invalid_path,folder=fn)
@@ -145,7 +200,7 @@ if wStatus:
             # df.to_csv('{path}/{fn}_{dt}.csv'.format(path=directory,fn=fn,dt=d), index = False)
 
         except:
-            logger.error('---Error in file: %s the folder will be skipped' % file)
+            logger.error(f"---Error in file: {file} the folder will be skipped")
             raise
 
         return
@@ -153,7 +208,7 @@ if wStatus:
     # Cycle through all the files in the export folder
     for root, subdirs, files in os.walk(export_path):
         for file in files:
-            with open(root + '/' + file, "r") as csvinput:
+            with open(f"{root}/{file}", "r") as csvinput:
                 # We only want to process files that match the pattern for wStatus files
                 m = regex.match(pattern,file)
                 if m==None:
@@ -165,24 +220,24 @@ if wStatus:
                 df_status_datetime = status_datetime_fields[fn]
                 df_status_only = set(df_status).symmetric_difference(set(df_status_datetime))
 
-                logger.debug("Processing "+fn+"...")
+                logger.debug(f"Processing {fn}...")
 
                 # Read the file in and get the keys for this file
                 df = pd.read_csv(csvinput,encoding='ansi',dtype='str',engine='python')
-                file_keys = meta.getKeyFields(fn.replace('_','.'))
+                file_keys = meta.getKeyFields(cfg, engine, lookuplist, fn.replace('_','.'))
 
                 # Fill down the status fields so all status fields have a value            
                 for fld in df_status:
                     df[fld] = df.groupby(file_keys)[fld].ffill()
 
                 # If the date field is still blank (i.e., was never provided), set it
-                df[df_status_datetime[0]].fillna('1900-01-01', inplace=True)
+                df[df_status_datetime[0]].fillna("1900-01-01", inplace=True)
 
                 # Create a new DataDatetime field using the date and time fields.
                 # If the time field is still blank, set it. If it is missing, set it.
                 if len(df_status_datetime)==2:
-                    df[df_status_datetime[1]].fillna('00:00:00', inplace=True)
-                    newDataDatetime = df[df_status_datetime[0]] + "T" + df[df_status_datetime[1]]
+                    df[df_status_datetime[1]].fillna("00:00:00", inplace=True)
+                    newDataDatetime = df[df_status_datetime[0]] + 'T' + df[df_status_datetime[1]]
                 else:
                     newDataDatetime = df[df_status_datetime[0]] + "T00:00:00"
 
@@ -200,24 +255,24 @@ if wStatus:
 
                 # Remove from the dataframe all rows with an invalid date
                 # Keep the status date/time fields as string, as that is what they are in the database
-                df[pd.to_datetime(df[df_status_datetime[0]])>invalid_date].to_csv('{path}/{fn}_INVALID.csv'.format(path=invalid_path,fn=fn))
+                df[pd.to_datetime(df[df_status_datetime[0]])>invalid_date].to_csv(f'{invalid_path}/{fn}_INVALID.csv')
                 df = df[pd.to_datetime(df[df_status_datetime[0]])<=invalid_date]
 
                 try:
                     # Now, group by the date field and create cumulative files for each date in the file
-                    for d in sorted(df['DataDatetime'].dt.strftime('%Y-%m-%d').unique()):
+                    for d in sorted(df['DataDatetime'].dt.strftime("%Y-%m-%d").unique()):
                         processfile(df.loc[df[df_status_datetime[0]] == d].groupby(file_keys,as_index=False).last(), fn, d)
 
                     # If you want cumulative files (i.e., all the most recent records up to this date), use this
                     #for d in sorted(df['DataDatetime'].dt.strftime('%Y-%m-%d').unique()):
                     #    processfile(df.loc[df[df_status_datetime[0]] <= d].groupby(file_keys,as_index=False).last(), fn, d)
                 except:
-                    logger.error('---Error in file: %s' % fn)
+                    logger.error(f"---Error in file: {fn}")
 
-            logger.info(".....closing file "+file)
+            logger.info(f".....closing file {file}")
             csvinput.close()
 
-            logger.info(".....archiving file "+file)
+            logger.info(f".....archiving file {file}")
             export.archive(df, "", file, export_path, archive_path, logger, createInitial = True)
 
 #
@@ -228,23 +283,23 @@ else: # NOT wStatus
     # !!! Needs to check for existence of schemas before trying to create any tables
     # !!!
 
-    logger.info('=========begin loop===========')
+    logger.info("=========begin loop===========")
 
     # loops through each directory and subdirectory of the Informer export path and processes each file.
     for root, subdirs, files in os.walk(export_path):
 
         # This block processes each Colleague File's folder (ACAC_CREDENTIAL_1001, etc.)
         for subdir in subdirs:
-            logger.info('Processing folder ' + subdir + '...')
+            logger.info(f"Processing folder {subdir}...")
 
             # Get all the files in the folder
-            filelist = sorted(glob.iglob(os.path.join(root, subdir, '*.csv')), key=os.path.getmtime)
+            filelist = sorted(glob.iglob(os.path.join(root, subdir, "*.csv")), key=os.path.getmtime)
 
             # This block processes each Colleague File export. These are exported each day as CSV files.
             for i in range(len(filelist)):
                 file = os.path.basename( filelist[i] )
 
-                logger.info("Processing file " + file + "...")
+                logger.info(f"Processing file {file}...")
 
                 # Reads in csv file then creates an array out of the headers
                 try:
@@ -254,7 +309,7 @@ else: # NOT wStatus
 
                 # The most common error has been that there is an error in the Unicode so handle this
                 except UnicodeDecodeError as er:
-                    logger.error("Error in File: \t %s \n\n Error: %s \n\n" % (file,er))
+                    logger.error(f"Error in File: \t {file}\n\n Error: {er}\n\n")
                     break
 
                 # The following makes a copy of each for the columns in this data frame
@@ -278,6 +333,19 @@ else: # NOT wStatus
                 # The COLLEAGUE file name is the directory name minus the version number at the end
                 sqlName = subdir[:-5]
 
+                svr_tables_history = pd.read_sql(sql_tbl_query, engine)
+                svr_tables_history = np.asarray(svr_tables_history["TABLE_NAME"])
+
+                flds = {'TableSchema' : "'" + cfg['sql']['schema'] + "'", 
+                        'TableName'   : "'" + sqlName + "'" }
+
+                table_columns_filein = open(cfg['sql']['table_column_names'],"r")
+                table_columns_src = Template( table_columns_filein.read() )
+                sql_col_query = table_columns_src.substitute(flds)
+                
+                svr_columns= pd.read_sql(sql_col_query, engine)
+                svr_columns.reset_index(inplace=True)
+
                 # Get a sorted list of a CSV file named as the file with the version added in the archive folder.
                 #     Example: For ACAD_CREDENTIALS_1001, look for ACAD_CREDENTIALS_1001.csv in the archive folder.
                 # We need to know if this is the first time this file is being processed.
@@ -288,7 +356,7 @@ else: # NOT wStatus
                 #     diff file (and therefore, do not need to create another diff)
                 if (len(archive_filelist) > 0) and not diffs:
                     lastarchive_filename = os.path.basename( archive_filelist[-1] )
-                    logger.debug("{0} LASTARCHIVE: {1}".format( timestamp(), lastarchive_filename ))
+                    logger.debug(f"{timestamp()} LASTARCHIVE: {lastarchive_filename}")
                     archive_file = pd.read_csv( os.path.join(archive_path, subdir, lastarchive_filename), 
                                                 encoding='ansi', dtype='str', 
                                                 na_values=None, keep_default_na=False, engine='python' )
@@ -300,36 +368,41 @@ else: # NOT wStatus
                     df = inputFrame
 
                 # If there is no DataDatetime column in the current dataframe, add one using the current date
-                if 'DataDatetime' in df.columns:
+                if "DataDatetime" in df.columns:
                     pass
                 else:
-                    df['DataDatetime'] = datetime.datetime.now()
+                    df["DataDatetime"] = datetime.datetime.now()
 
                 if writedb:
                     # If there is data in the dataframe, try to write it to the database.
                     # If it fails, break out of the loop that is processing files in this folder.
                     if df.shape[0] > 0:
                         try:
-                            logger.debug("{0} SQL_UPDATE: {1} with {2} rows".format( timestamp(), file, df.shape[0] ))
+                            logger.debug(f"{timestamp()} SQL_UPDATE: {file} with {df.shape[0]} rows")
 
-                            export.executeSQL_UPDATE(engine, df, sqlName, keyListDict, dataTypesDict, dataTypeMVDict, elementAssocTypesDict, elementAssocNamesDict, logger)
+                            export.executeSQL_UPDATE( engine, df, sqlName, 
+                                                      keyListDict, 
+                                                      dataTypesDict, dataTypeMVDict, 
+                                                      elementAssocTypesDict, elementAssocNamesDict,
+                                                      svr_tables_input, svr_tables_history, svr_columns, 
+                                                      logger, cfg )
 
-                            logger.debug("{0} SQL_UPDATE: {1} with {2} rows [DONE]".format( timestamp(), file, df.shape[0] ))
+                            logger.debug(f"{timestamp()} SQL_UPDATE: {file} with {df.shape[0]} rows [DONE]")
                         except:
-                            logger.error('---Error in file: %s the folder will be skipped' % file)
+                            logger.error(f"'---Error in file: {file} -- the folder will be skipped")
                             break
                     else:
-                        logger.debug("{0} SQL_UPDATE: No updated data for {1}".format( timestamp(), file ))
+                        logger.debug(f"{timestamp()} SQL_UPDATE: No updated data for {file}")
                     
                 # Finally, archive the file in the archive folder if their were no exceptions processing the file.
-                logger.debug("{0} Archive: {1}".format( timestamp(), file ))
+                logger.debug(f"{timestamp()} Archive: {file}")
 
-                export.archive(df, subdir, file, export_path, archive_path, logger, diffs = diffs)
+                export.archive(df, subdir, file, export_path, archive_path, logger, cfg, diffs = diffs)
 
-                logger.debug("{0} Archive: {1} [DONE]".format( timestamp(), file ))
+                logger.debug(f"{timestamp()} Archive: {file} [DONE]")
                     
-                logger.info("Processing file " + file + "...[DONE]")
+                logger.info(f"Processing file {file}...[DONE]")
 
-            logger.info('Processing folder ' + subdir + '...[DONE]')
+            logger.info(f"Processing folder {subdir}...[DONE]")
     
 logger.info("DONE.")

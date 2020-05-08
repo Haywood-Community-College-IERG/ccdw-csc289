@@ -14,7 +14,7 @@ IF %1.==. (
 ECHO Setting up initial database
 SQLCMD -S %ServerName% -Q "CREATE DATABASE CCDW"
 SQLCMD -S %ServerName% -i sql\Create_Schemas.sql > NUL
-SQLCMD -S %ServerName% -i sql\dbo.DelimitedSplit8K.sql > NUL
+SQLCMD -S %ServerName% -i sql\dw_util.DelimitedSplit8K.sql > NUL
 SQLCMD -S %ServerName% -i sql\dw_util.GetEasterHolidays.sql > NUL
 SQLCMD -S %ServerName% -i sql\dw_util.Update_Date.sql > NUL
 SQLCMD -S %ServerName% -i sql\RestoreDB2Base.sql > NUL

@@ -1,1 +1,1 @@
-"C:\Program Files\Python37\python.exe" .\import.py %* 2>&1 > .\output.txt
+"C:\Python\Python38\python.exe" .\import.py --path="%~dp0" %*
