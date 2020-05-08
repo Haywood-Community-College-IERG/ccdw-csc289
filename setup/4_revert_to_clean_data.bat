@@ -10,6 +10,7 @@ IF %1.==. (
 )
 
 ECHO Restoring initial database on %ServerName%...
+SQLCMD -S %ServerName% -i sql\Delete_All_Tables_And_Views.sql
 SQLCMD -S %ServerName% -Q "EXEC CCDW.dbo.RestoreDB2Base"
 
 ECHO Now remove the archived files...

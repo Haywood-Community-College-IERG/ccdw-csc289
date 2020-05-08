@@ -1,9 +1,9 @@
-CREATE VIEW [${viewSchema}].[${TableName}__${viewName2}] AS
+CREATE VIEW [${ViewSchema}].[${ViewName}] AS
 SELECT ${primaryKeys}
-       ${str1}
+       ${CastStr}
      , CA1.ItemNumber AS ItemNumber
      , EffectiveDatetime
-  FROM [${viewSchema}].[${TableName}]
-  ${str2}
+  FROM [${ViewSchema}].[${TableName}]
+  ${CrossApplyStr}
  WHERE COALESCE([${associationKeys}],'') != ''
-       ${str3}
+       ${WhereAndStr}

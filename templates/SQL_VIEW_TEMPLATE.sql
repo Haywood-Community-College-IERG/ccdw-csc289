@@ -1,4 +1,4 @@
-CREATE VIEW [${viewSchema}].[${viewName}] AS
-  SELECT ${viewColumns} 
-  FROM [${viewSchema}].[${TableName}]
+CREATE VIEW [${ViewSchema}].[${ViewName}] AS
+  SELECT ${TableColumns} 
+  FROM [${ViewSchema}].[${TableName}]
   WHERE CurrentFlag = 'Y'

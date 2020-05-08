@@ -1,8 +1,5 @@
 import yaml
 
-import functools
-print = functools.partial(print, flush=True)
-
 def load_cfg():
     global cfg
     with open("config.yml","r") as ymlfile:
