@@ -1,125 +1,159 @@
-import csv
-import os
 import sys
+import os
+from os import path
+#import csv
 #import yaml
 #import urllib
 import pandas as pd
-import numpy as np
-from os import path
+#import numpy as np
 import glob
-import export
+#import export
 from loguru import logger
 import sqlalchemy
 
-import functools
+#import functools
 
-@logger.catch
-def loadLookupList(cfg, engine, refresh=False):
+class CCDW_Meta:
+    __lookuplist = None
+    __cfg = []
+    __logger = None
 
-    # Read all files in the meta folder
-    meta_path = cfg['informer']['export_path_meta']
-    all_files = glob.glob(os.path.join(meta_path, "*_CDD*csv"))
-    df_from_each_file = (pd.read_csv(f,encoding = "ansi", dtype='str') for f in all_files)
-    lookuplist = pd.concat(df_from_each_file, ignore_index=True)
-    
-    meta_custom = cfg['ccdw']['meta_custom']
-    meta_custom_csv = pd.read_csv(meta_custom,encoding = "ansi", dtype='str')
+    def __init__( self, cfg, logger ):
+        self.__cfg = cfg.copy()
+        self.__logger = logger
 
-    metaList = set(meta_custom_csv['ids'].copy())
-    lookeyList = lookuplist['ids'].copy()
-    meta_custom_csv = meta_custom_csv.sort_values(by='ids')
-    delThis = [item for i, item in enumerate(lookeyList) if item in metaList]
-    delIDs = [list(lookeyList).index(item) for i,item in enumerate(delThis)]
-    meta_custom_csv.set_index('ids')
-    lookuplist.drop(delIDs,axis=0, inplace=True)
-    lookuplist = lookuplist.append(meta_custom_csv, ignore_index=True)
-    lookuplist = lookuplist.where(pd.notnull(lookuplist), None)
-    lookuplist.set_index('ids')
+        self.loadLookupList( cfg )
 
-    if refresh:
-        logger.debug( "Update CDD in meta" )
-        logger.debug( "...delete old data" )
-        engine.execute( 'DELETE FROM meta.CDD' )
-        logger.debug( "...push new data" )
-        lookuplist.to_sql( 'CDD', engine, flavor=None, schema='meta', if_exists='append',
-                            index=False, index_label=None, chunksize=None )
-        logger.debug( "...Update CDD in meta [DONE]" )
-    
-    return(lookuplist)
+        self.__logger.debug("CCDW_Meta initialized")
 
-#loadLookupList()
+    @logger.catch
+    def loadLookupList(self, engine=None, refresh=False):
 
-# Return the key(s) for the specified fle
-@logger.catch
-def getKeyFields(cfg, engine, lookuplist, file=''):
-    if file=='':
-        keys = lookuplist[(lookuplist['Database Usage Type ']=='K')]
-    else:
-        keys = lookuplist[(lookuplist['Source ']==file) & (lookuplist['Database Usage Type ']=='K')]
+        if not self.__lookuplist or refresh:
+            # Read all files in the meta folder
+            meta_path = self.__cfg["informer"]["export_path_meta"]
+            all_files = glob.glob(os.path.join(meta_path, "*_CDD*csv"))
+            df_from_each_file = (pd.read_csv(f,encoding = "ansi", dtype="str", index_col=0) for f in all_files)
+            self.__lookuplist = pd.concat(df_from_each_file)
+            
+            meta_custom = self.__cfg["ccdw"]["meta_custom"]
+            meta_custom_csv = pd.read_csv(meta_custom,encoding = "ansi", dtype="str", index_col=0)
 
-    return(list(set(keys.ids.tolist())))
+            self.__lookuplist = self.__lookuplist.append(meta_custom_csv)
+            self.__lookuplist.reset_index(inplace=True)
+            self.__lookuplist = self.__lookuplist.drop_duplicates(subset="ids", keep="last")
+            self.__lookuplist = self.__lookuplist.where(pd.notnull(self.__lookuplist), None)
+            self.__lookuplist.set_index("ids",inplace=True)
+        
+        return
 
-@logger.catch
-def getDataTypes(cfg, engine, lookuplist, file=''):
+    # Return the key(s) for the specified fle
+    @logger.catch
+    def getKeyFields(self, file=''):
+        if file=='':
+            keys = self.__lookuplist[(self.__lookuplist["Database Usage Type "]=='K')]
+        else:
+            keys = self.__lookuplist[(self.__lookuplist["Source "]==file) & (self.__lookuplist["Database Usage Type "]=='K')]
 
-    if file!='':
-        dtLookuplist = lookuplist[(lookuplist['Source ']==file)]
-    else:
-        dtLookuplist = lookuplist
+        return(list(set(keys.ids.tolist())))
 
-    fieldNames = dtLookuplist['ids'].copy()
-    dataType = dtLookuplist['Data Type '].copy()
-    dataTypeMV = dtLookuplist['Data Type '].copy()
-    dataLength = dtLookuplist['Default Display Size ']
-    usageType = dtLookuplist['Database Usage Type '].copy()
-    elementAssocType = dtLookuplist['Element Assoc Type '].copy()
-    elementAssocName = dtLookuplist['Element Assoc Name '].copy()
-    dataDecimalLength = dtLookuplist['Dt2 '].replace('', '0', regex=True).copy()
+    @logger.catch
+    def getDataTypes(self, file='', columns=[]):
 
-    for index, fieldDataType in enumerate(dataType):
-        dtypers = "VARCHAR(MAX)"
-        if usageType[index] == 'A' or usageType[index] == 'Q' or usageType[index] == 'L' or usageType[index] == 'I' or usageType[index] == 'C':
-            if fieldDataType == 'S' or fieldDataType == 'U' or fieldDataType == '' or fieldDataType == None:
-                dtypers = f"VARCHAR({dataLength[index]})"
+        src_file = file.replace('_','.')
+
+        if file!='':
+            dtLookuplist_file = self._CCDW_Meta__lookuplist.loc[self._CCDW_Meta__lookuplist["Source "]==src_file]
+            dtLookuplist_ccdw = self._CCDW_Meta__lookuplist.loc[self._CCDW_Meta__lookuplist["Source "]=="SYS_CCDW"]
+            dtLookuplist = dtLookuplist_file.append( dtLookuplist_ccdw )
+        else:
+            if not columns.empty:
+                dtLookuplist_file = self._CCDW_Meta__lookuplist.loc[columns]
+                dtLookuplist_ccdw = self._CCDW_Meta__lookuplist.loc[self._CCDW_Meta__lookuplist["Source "]=="SYS_CCDW"]
+                dtLookuplist = dtLookuplist_file.append( dtLookuplist_ccdw )
+            else:
+                dtLookuplist = self._CCDW_Meta__lookuplist
+
+        dtLookuplist.index.rename("ids",inplace=True)
+        dtLookuplist.reset_index(inplace=True)
+        dtLookuplist.drop_duplicates(subset=["ids"],inplace=True)
+        dtLookuplist.set_index("ids",inplace=True)
+
+        fieldNames = dtLookuplist.index.array
+        dataType = dtLookuplist["Data Type "].copy()
+        sqlType = dtLookuplist["Data Type "].copy()
+        dataTypeMV = dtLookuplist["Data Type "].copy()
+        dataLength = dtLookuplist["Default Display Size "].copy()
+        usageType = dtLookuplist["Database Usage Type "].copy()
+        elementAssocType = dtLookuplist["Element Assoc Type "].copy()
+        elementAssocName = dtLookuplist["Element Assoc Name "].copy()
+        dataDecimalLength = dtLookuplist["Dt2 "].replace('', '0', regex=True).copy()
+
+        if columns.empty:
+            columns = fieldNames.copy()
+        else:
+            if file != "":
+                columns = columns.append(dtLookuplist_ccdw.index)
+
+        for index, fieldDataType in dataType.iteritems():
+            dtypers = "VARCHAR(MAX)"
+            sqlType[index] = "VARCHAR(MAX)"
+
+            if usageType[index] in ['A','Q','L','I','C']:
+                if fieldDataType in ['S','U','',None]:
+                    dtypers = f"VARCHAR({dataLength[index]})"
+                elif fieldDataType == 'T':
+                    dtypers = "TIME"
+                elif fieldDataType == 'N':
+                    dtypers = f"NUMERIC({dataLength[index]}, {dataDecimalLength[index]})"
+                elif fieldDataType == 'D':
+                    dtypers = "DATE"
+                elif fieldDataType == "DT":
+                    dtypers = "DATETIME"
+                dataTypeMV[index] = dtypers
+                dataType[index] = sqlalchemy.types.String(None)
+                sqlType[index] = f"VARCHAR(MAX)"
+
+            elif fieldDataType in ['S','U','',None]:
+                dataType[index] = sqlalchemy.types.String(dataLength[index])
+                sqlType[index] = f"VARCHAR({dataLength[index]})"
+
             elif fieldDataType == 'T':
-                dtypers = "TIME"
+                dataType[index] = sqlalchemy.types.Time()
+                sqlType[index] = "TIME"
+
             elif fieldDataType == 'N':
-                dtypers = f"NUMERIC({dataLength[index]}, {dataDecimalLength[index]})"
+                dataType[index] = sqlalchemy.types.Numeric(int(dataLength[index]),dataDecimalLength[index])
+                sqlType[index] = f"NUMERIC({int(dataLength[index])},{dataDecimalLength[index]})"
+
             elif fieldDataType == 'D':
-                dtypers = "DATE"
+                dataType[index] = sqlalchemy.types.Date()
+                sqlType[index] = "DATE"
+
             elif fieldDataType == "DT":
-                dtypers = "DATETIME"
-            dataTypeMV[index] = dtypers
-            fieldDataType = sqlalchemy.types.String(None) # changed from 8000
+                dataType[index] = sqlalchemy.types.DateTime()
+                sqlType[index] = "DATETIME"
 
-        elif fieldDataType == 'S' or fieldDataType == 'U' or fieldDataType == '' or fieldDataType == None:
-            fieldDataType = sqlalchemy.types.String(dataLength[index]) #types = sqlalchemy.types.String(8000)
+            else:
+                dataType[index] = sqlalchemy.types.String(None)
+                sqlType[index] = "VARCHAR(MAX)"
 
-        elif fieldDataType == 'T':
-            fieldDataType = sqlalchemy.types.Time() # 'TIME'
+        keyList = dict(list(zip(fieldNames,usageType)))
+        dataTypes = dict(list(zip(fieldNames,dataType)))
+        sqlTypes = dict(list(zip(fieldNames,sqlType)))
+        dataTypeMV = dict(list(zip(fieldNames,dataTypeMV)))
+        elementAssocTypes = dict(list(zip(fieldNames,elementAssocType)))
+        elementAssocNames = dict(list(zip(fieldNames,elementAssocName)))
 
-        elif fieldDataType == 'N':
-            fieldDataType = sqlalchemy.types.Numeric(int(dataLength[index]),dataDecimalLength[index]) #'DECIMAL(' + str(dataLength[index]) + ',3)'
+        # Remove blank entries from the association and multi-value dictionaries (not every field is multi-valued or in an association)
+        for key, val in list(elementAssocNames.items()):
+            if val == None:
+                del elementAssocNames[key]
+                del elementAssocTypes[key]
+                del dataTypeMV[key]
 
-        elif fieldDataType == 'D':
-            fieldDataType = sqlalchemy.types.Date()  # 'DATE'
+        for key, val in list(keyList.items()):
+            if val != 'K':
+                del keyList[key]
 
-        elif fieldDataType == 'DT':
-            fieldDataType = sqlalchemy.types.DateTime()
-
-        dataType[index] = fieldDataType
-
-    keyListDF = pd.concat([fieldNames,usageType], axis=1)
-    dataTypeMV = pd.concat([fieldNames,dataTypeMV], axis=1)
-    dataTypes = pd.concat([fieldNames,dataType], axis=1)
-    elementAssocTypes = pd.concat([fieldNames,elementAssocType], axis=1)
-    elementAssocNames = pd.concat([fieldNames,elementAssocName], axis=1)
-
-
-    keyList = list(keyListDF.set_index('ids').to_dict().values()).pop()
-    dataTypes = list(dataTypes.set_index('ids').to_dict().values()).pop()
-    dataTypeMV = list(dataTypeMV.set_index('ids').to_dict().values()).pop()
-    elementAssocTypes = list(elementAssocTypes.set_index('ids').to_dict().values()).pop()
-    elementAssocNames = list(elementAssocNames.set_index('ids').to_dict().values()).pop()
-
-    return(keyList,dataTypes,dataTypeMV,elementAssocTypes,elementAssocNames)
+        return(keyList,dataTypes,sqlTypes,dataTypeMV,elementAssocTypes,elementAssocNames)
