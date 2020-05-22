@@ -2,12 +2,14 @@
 INSERT INTO ${TableSchema_DEST}.${TableName}
     (
         ${TableColumns},
+        [Audit_Key],
         [EffectiveDatetime],
         [ExpirationDatetime],
         [CurrentFlag]
     )
     SELECT 
         ${TableColumns},
+        [Audit_Key],
         [EffectiveDatetime],
         [ExpirationDatetime],
         [CurrentFlag] 
@@ -23,6 +25,7 @@ INSERT INTO ${TableSchema_DEST}.${TableName}
             INSERT 
             (
                     ${TableColumns},
+                    Audit_Key,
                     EffectiveDatetime,
                     ExpirationDatetime, 
                     CurrentFlag
@@ -30,6 +33,7 @@ INSERT INTO ${TableSchema_DEST}.${TableName}
             VALUES 
             (  
                     ${TableColumns_SRC},
+                    CAST(${AuditKey} AS INTEGER),
                     CAST(SRC.DataDatetime AS datetime2),
                     NULL, 
                     'Y'
@@ -61,6 +65,7 @@ INSERT INTO ${TableSchema_DEST}.${TableName}
 
         OUTPUT $$ACTION Action_Taken,
             ${TableColumns_SRC},
+            CAST(${AuditKey} AS INTEGER) AS Audit_Key,
             CAST(SRC.DataDatetime AS datetime2) AS EffectiveDatetime, 
             NULL AS ExpirationDatetime, 
             'Y' AS CurrentFlag

@@ -17,10 +17,11 @@ from loguru import logger
 
 import functools
 
+__source__ = 'import.py'
 __version__ = "2.0.0"
 
 def main():
-    run_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S%f")
+    run_datetime = datetime.datetime.now()
     def timestamp():
         return( datetime.datetime.now().isoformat() )
 
@@ -54,8 +55,8 @@ def main():
     updateConfig = args.updateConfig
     outputErrorDF = args.outputErrorDF
     debug_flag = args.debug_flag
-    logger_level = 'DEBUG' if debug_flag else args.logger_level
-    config_path = Path(args.config_path.replace('"',"").strip()) / "config.yml"
+    cmd_log_level = 'DEBUG' if debug_flag else args.logger_level
+    config_path = Path(args.config_path.replace('"','').strip()) / "config.yml"
 
     import config
     cfg = config.load_cfg(config_path)
@@ -69,28 +70,41 @@ def main():
     log_path = cfg['ccdw']['log_path']
     prefix = cfg['informer']['prefix']
 
-    log_level = cfg['ccdw']['log_level'].upper()
-
-    if not log_level in ['TRACE','DEBUG','INFO','SUCCESS','WARNING','ERROR','CRITICAL']:
-        if logger_level:
-            log_level = logger_level
+    cfg_log_level = cfg['ccdw']['log_level'].upper()
+    logger_types = ['TRACE','DEBUG','INFO','SUCCESS','WARNING','ERROR','CRITICAL']
+    if not cfg_log_level in logger_types:
+        if cmd_log_level:
+            logger_level = cmd_log_level
         else:
-            log_level = 'INFO'
+            logger_level = 'INFO'
+    else:
+        logger_idx = min([logger_types.index(i) for i in [cfg_log_level,cmd_log_level]])
+        logger_level = logger_types[logger_idx]
 
     # We are transitioning the code from one type of logging to another. These opens both.
-    logger_log = open(os.path.join(log_path,f"logger.log_{run_datetime}{wStatus_suffix}.txt"), "w", 1)
+    logger_log = open(os.path.join(log_path,f"logger.log_{run_datetime.strftime('%Y-%m-%d_%H%M%S%f')}{wStatus_suffix}.txt"), "w", 1)
 
     # Setup the new logger
     logger.remove()
-    logger.add(logger_log, enqueue=True, backtrace=True, diagnose=True, level=log_level) # Set last 2 to False
+    logger.add(logger_log, enqueue=True, backtrace=True, diagnose=True, level=logger_level) # Set last 2 to False
     logger.debug( f"Arguments: writedb = [{writedb}], diffs = [{diffs}], refresh = [{refresh}], wStatus = [{wStatus}], updateConfig=[{updateConfig}]" )
-        
+
+    __local_cfg = { 'source'         : __source__,
+                    'version'        : __version__,
+                    'run_datetime'   : run_datetime,
+                    'wStatus_suffix' : wStatus_suffix,
+                    'outputErrorDF'  : outputErrorDF,
+                    'logger'         : logger
+                  }
+
+    cfg.update( {'__local' : __local_cfg} )
+       
     # Import other local packages
     import meta
     import export
 
-    metaObj = meta.CCDW_Meta(cfg,logger)
-    exportObj = export.CCDW_Export(cfg,metaObj,wStatus_suffix,outputErrorDF,logger)
+    metaObj = meta.CCDW_Meta(cfg)
+    exportObj = export.CCDW_Export(cfg,metaObj)
 
     # Push the 'school' section of the configuration to SQL Server, if requested
     if updateConfig:
@@ -230,6 +244,9 @@ def main():
                     file = os.path.basename( filelist[i] )
 
                     logger.info(f"Processing file {file}...")
+                    Audit_Key = exportObj.CreateTableAuditRecord( sqlName, file )
+                    records = 0
+                    error_flag = 'N'
 
                     # Reads in csv file then creates an array out of the headers
                     try:
@@ -245,7 +262,7 @@ def main():
                     #     Example: For ACAD_CREDENTIALS_1001, look for ACAD_CREDENTIALS_1001.csv in the archive folder.
                     # We need to know if this is the first time this file is being processed.
                     # If it is not, this file is the shadow copy of the most recent records in the database.
-                    archive_filelist = sorted(glob.iglob(os.path.join(archive_path, subdir, subdir + '.csv')), key=os.path.getctime)
+                    archive_filelist = sorted(glob.iglob(os.path.join(archive_path, subdir, subdir + '_LF.csv')), key=os.path.getctime)
 
                     # Check if there are files in the archive folder and we are not already processing a 
                     #     diff file (and therefore, do not need to create another diff)
@@ -275,21 +292,23 @@ def main():
                             try:
                                 logger.debug(f"{timestamp()} SQL_UPDATE: {file} with {df.shape[0]} rows")
 
-                                exportObj.executeSQL_UPDATE( sqlName, df ) 
+                                records = exportObj.executeSQL_UPDATE( sqlName, df, Audit_Key ) 
 
-                                logger.debug(f"{timestamp()} SQL_UPDATE: {file} with {df.shape[0]} rows [DONE]")
+                                logger.debug(f"{timestamp()} SQL_UPDATE: {file} with {records} rows [DONE]")
                             except:
                                 logger.error(f"'---Error in file: {file} -- the folder will be skipped")
+                                error_flag = 'Y'
                                 break
                         else:
                             logger.debug(f"{timestamp()} SQL_UPDATE: No updated data for {file}")
                         
                     # Finally, archive the file in the archive folder if their were no exceptions processing the file.
                     logger.debug(f"{timestamp()} Archive: {file}")
-
                     archive(df, subdir, file, archive_path, export_path, cfg, diffs = diffs)
-
                     logger.debug(f"{timestamp()} Archive: {file} [DONE]")
+
+                    exportObj.records += records
+                    exportObj.UpdateTableAuditRecord(Audit_Key,records,error_flag)
                         
                     logger.info(f"Processing file {file}...[DONE]")
 
@@ -353,19 +372,25 @@ def archive(df, subdir, file, archive_path, export_path, cfg, diffs = True, crea
                 raise
     else:
         if cfg['ccdw']['archive_type'] == 'move':
-            archive_filelist = sorted(glob.iglob(os.path.join(archive_path, subdir, subdir + '_Initial.csv')), 
-                                    key=os.path.getctime)
-            if (len(archive_filelist) == 0):
-                logger.debug("INITALARCHIVE: Creating...")
-                df.to_csv( os.path.join(archive_path, subdir, subdir + '_Initial.csv'), 
-                        index = False, date_format="%Y-%m-%dT%H:%M:%SZ" )
+            #archive_filelist = sorted(glob.iglob(os.path.join(archive_path, subdir, subdir + '_Initial.csv')), 
+            #                        key=os.path.getctime)
+            old_archive_file = glob.glob(os.path.join(archive_path, subdir, '*_LF.csv'))
+
+            #if (len(archive_filelist) == 0):
+            #    logger.debug("INITALARCHIVE: Creating...")
+            #    df.to_csv( os.path.join(archive_path, subdir, subdir + '_Initial.csv'), 
+            #            index = False, date_format="%Y-%m-%dT%H:%M:%SZ" )
 
             if diffs:
                 shutil.move(os.path.join(export_path, subdir, file), os.path.join(archive_path, subdir, file))
             else:
                 # Move the file to the archive location
-                shutil.move(os.path.join(export_path, subdir, file), os.path.join(archive_path, subdir, subdir + '.csv'))
+                shutil.move(os.path.join(export_path, subdir, file), os.path.join(archive_path, subdir, file[:-4] + '_LF.csv'))
                 df.to_csv( os.path.join(archive_path, subdir, file), index = False, date_format="%Y-%m-%dT%H:%M:%SZ" )
+
+            if (len(old_archive_file) > 0):
+                os.remove(old_archive_file[0])
+
 
 if __name__ == '__main__': 
     main()

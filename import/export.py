@@ -1,5 +1,6 @@
 import sys
 import urllib
+import datetime
 import pyodbc
 import pandas as pd
 import numpy as np
@@ -9,24 +10,34 @@ import glob
 from string import Template
 import sqlalchemy
 from sqlalchemy import exc
+from sqlalchemy.dialects import mssql
+from sqlalchemy import Table, Column, MetaData
 import re
 import copy
 import numpy as np
 from loguru import logger
 
 class CCDW_Export:
-    __cfg = None
+    __cfg = {}
     __meta = None
     __logger = None
+    __run_datetime = None
+    __etl_source = ""
+    __etl_version = ""
+    __audit_dtypes = {}
 
     __export_path = ""
     __archive_path = ""
+    __Parent_Audit_Key = 0
 
     engine = None
     svr_tables_input = {}
     svr_tables_history = {}
     sql_schema_input = ""
     sql_schema_history = ""
+
+    records = 0
+    error_flag = 'N'
 
     tableColumnsNamesTemplate = ""
     dropViewTemplate = ""
@@ -42,16 +53,21 @@ class CCDW_Export:
     mergeSCD2Template = ""
     deleteTableDataTemplate = ""
 
-    def __init__(self,cfg, meta, wStatus_suffix, outputErrorDF, logger):
+    def __init__(self, cfg, meta):
         self.__cfg = cfg.copy()
         self.__meta = meta
-        self.__logger = logger
-        self.__outputErrorDF = outputErrorDF
+        self.__logger = self.__cfg['__local']['logger']
+        self.__outputErrorDF = self.__cfg['__local']['outputErrorDF']
+        self.__run_datetime = self.__cfg['__local']['run_datetime']
+        self.__wStatus_suffix = self.__cfg['__local']['wStatus_suffix']
+        self.__etl_source = self.__cfg['__local']['source']
+        self.__etl_version = self.__cfg['__local']['version']
 
-        self.export_path = self.__cfg["informer"]["export_path" + wStatus_suffix]
-        self.archive_path = self.__cfg["ccdw"]["archive_path" + wStatus_suffix]
+        self.export_path = self.__cfg["informer"]["export_path" + self.__wStatus_suffix]
+        self.archive_path = self.__cfg["ccdw"]["archive_path" + self.__wStatus_suffix]
         self.sql_schema_input =self.__cfg["sql"]["schema"]
         self.sql_schema_history =self.__cfg["sql"]["schema_history"]
+        self.sql_schema_audit =self.__cfg["sql"]["schema_audit"]
 
         # Set template items
         self.tableNamesTemplate = self.LoadTemplate( "table_names" )
@@ -68,12 +84,86 @@ class CCDW_Export:
         self.view3CreateTemplate = self.LoadTemplate( "view3_create" )
         self.mergeSCD2Template = self.LoadTemplate( "merge_scd2" )
         self.deleteTableDataTemplate = self.LoadTemplate( "delete_table_data" )
+        self.auditCreateRecord = self.LoadTemplate( "audit_create_record" )
+        self.auditUpdateRecord = self.LoadTemplate( "audit_update_record" )
 
         self.set_engine(self.__cfg["sql"]["driver"], self.__cfg["sql"]["server"], self.__cfg["sql"]["db"], self.__cfg["sql"]["schema"])
+
+        self.__audit_dtypes = { "Audit_Key"            : mssql.INTEGER,
+                                "Parent_Audit_Key"     : mssql.INTEGER,
+                                "Table_Name"           : mssql.VARCHAR(100),
+                                "Records_Modified"     : mssql.INTEGER,
+                                "Load_Error_Indicator" : mssql.VARCHAR(1),
+                                "Load_Start_Date"      : mssql.DATETIME,
+                                "Load_End_Date"        : mssql.DATETIME,
+                                "ETL_Source"           : mssql.VARCHAR(50),
+                                "ETL_Version"          : mssql.VARCHAR(10) 
+                              }
+
+
+        metadata = MetaData()
+        self.__auditTbl = Table('Audit', metadata,
+            Column('Audit_Key', mssql.INTEGER, primary_key=True, nullable=False,
+                                autoincrement=True),
+            Column('Parent_Audit_Key', mssql.INTEGER,  
+                                        nullable=False, server_default=sqlalchemy.sql.text('0') ),
+            Column('Table_Name', mssql.VARCHAR(100), nullable=False, server_default="Unknown"),
+            Column("Data_Source",mssql.VARCHAR(500), nullable=False, server_default="Unknown"),
+            Column("Records_Modified", mssql.INTEGER, nullable=False, server_default=sqlalchemy.sql.text('0')),
+            Column("Load_Error_Indicator", mssql.VARCHAR(1), nullable=False, server_default='N'),
+            Column("Load_Start_Datetime", mssql.DATETIME, nullable=False, server_default=sqlalchemy.sql.text("CURRENT_TIMESTAMP")),
+            Column("Load_End_Datetime", mssql.DATETIME),
+            Column("ETL_Source", mssql.VARCHAR(50), nullable=False, server_default="Unknown"),
+            Column("ETL_Version", mssql.VARCHAR(10), nullable=False, server_default="Unknown"),
+            schema="dw_dim"
+        )
+
+        self.__Parent_Audit_Key = self.CreateParentAuditRecord()
 
         self.LoadServerTableMetadata()
 
         self.__logger.debug("CCDW_Export initialized")
+
+    def __del__(self):
+        self.UpdateParentAuditRecord()
+        return
+
+    def CreateTableAuditRecord(self, sqlName, fn):
+        self._CCDW_Export__logger.debug(f"Audit record added for '{sqlName}' with PAK={self._CCDW_Export__Parent_Audit_Key} and fn={fn}")
+        # audit_fields = { "Table_Name"       : sqlName,
+        #                  "Data_Source"      : fn,
+        #                  "Parent_Audit_Key" : self._CCDW_Export__Parent_Audit_Key,
+        #                  "ETL_Source"       : self._CCDW_Export__etl_source,
+        #                  "ETL_Version"      : self._CCDW_Export__etl_version,
+        #                  "Audit_Schema"     : self.sql_schema_audit,
+        #                  "Audit_Table_Name" : "Audit" }
+        # auditSQL = sqlalchemy.sql.text(self.auditCreateRecord.substitute(audit_fields))
+        # results = self.engine.execute(auditSQL)
+
+        auditTbl = self.__auditTbl
+        ins = auditTbl.insert().values( Parent_Audit_Key=self.__Parent_Audit_Key,
+                                        Table_Name=sqlName, 
+                                        Data_Source=fn,
+                                        ETL_Source=self._CCDW_Export__etl_source, 
+                                        ETL_Version=self._CCDW_Export__etl_version )
+        result = self.engine.execute(ins)
+
+        return(result.inserted_primary_key[0])
+
+    def CreateParentAuditRecord(self):
+        return(self.CreateTableAuditRecord("Main()",self.export_path))
+
+    def UpdateTableAuditRecord(self,key,records,error_flag):
+        self.__logger.debug(f"Audit record updated for key='{key}' with records={records} and error_flag={error_flag}")
+        auditTbl = self.__auditTbl
+        updt = auditTbl.update().where( auditTbl.c.Audit_Key == key ).\
+            values( Records_Modified=records, Load_End_Datetime=datetime.datetime.now(), Load_Error_Indicator=error_flag )
+        self.engine.execute(updt)
+        return
+
+    def UpdateParentAuditRecord(self):
+        self.UpdateTableAuditRecord(self.__Parent_Audit_Key,self.records,self.error_flag)
+        return
 
     def LoadServerTableMetadata(self, schema=""):
 
@@ -118,7 +208,7 @@ class CCDW_Export:
 
     # executeSQL_UPDATE() - calls both executeSQL_INSERT and executeSQL_MERGE in attempt to update the SQL Tables 
     @logger.catch
-    def executeSQL_UPDATE( self, sqlName, df ):
+    def executeSQL_UPDATE( self, sqlName, df, Audit_Key ):
                         
         self.svr_columns_input = self.LoadServerColumnMetadata(sqlName,schema=self.sql_schema_input)
         self.svr_columns_history = self.LoadServerColumnMetadata(sqlName,schema=self.sql_schema_history)
@@ -138,14 +228,34 @@ class CCDW_Export:
             raise
 
         try:
-            self.__executeSQL_MERGE( sqlName, df ) 
+            records = self.__executeSQL_MERGE( sqlName, df, Audit_Key ) 
         except:
             self.__logger.exception("XXXXXXX failed on executeSQL_MERGE XXXXXXX")
             raise
 
+        return(records)
+
     # executeSQL_INSERT() - attempts to create SQL code from csv files and push it to the SQL server
     @logger.catch
     def __executeSQL_INSERT( self, sqlName, df ):
+
+        # Deletes Tables from SQL Database if coppied to the history table
+        try:
+            if sqlName in self.svr_tables_input:
+                self.__logger.debug("Ensure input table is empty")
+
+                flds_del = {"TableSchema" : self.sql_schema_input, 
+                            "TableName"   : sqlName,
+                        }
+                deleteDataSQL = self.deleteTableDataTemplate.substitute(flds_del)
+
+                self.__logger.trace(f"deleteDataSQL: {deleteDataSQL}")
+                rtn = self.engine.execute(deleteDataSQL)
+
+        except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError, pyodbc.Error, pyodbc.ProgrammingError) as er:
+            self.__logger.error(f"---executing DELETE command - skipped SQL ERROR [{str(er.args[0])}]")
+            self.__logger.exception(f"Error in File: \t {sqlName}\n\n Error: {er}\n\n\n")
+            raise
 
         self.__logger.debug("Fix all non-string columns, replace blanks with NAs which become NULLs in DB, and remove commas")
         nonstring_columns = [key for key in self.dataTypes.keys() & self.df_columns if type(self.dataTypes[key]) != sqlalchemy.sql.sqltypes.String]
@@ -182,7 +292,7 @@ class CCDW_Export:
     @logger.catch
     def __executeSQLAppend(self, df, sqlName, schema):
 
-        TableColumns= self.df_columns 
+        TableColumns = self.df_columns 
 
         self.__logger.debug("_______________________________________________________________________")
         if schema == self.sql_schema_input:
@@ -226,6 +336,7 @@ class CCDW_Export:
         #if there are added Columns attempt to push them to the SQL Table
         try:
             if (updateColumns):
+                self.__logger.trace(f"alterTableSQL: {alterTableSQL}")
                 self.engine.execute(alterTableSQL)
                 self.LoadServerTableMetadata(schema=schema)
 
@@ -241,8 +352,10 @@ class CCDW_Export:
             try:
                 self.__logger.debug("----Creating Current View")
                 #drop sql view if exits
+                self.__logger.trace(f"dropViewSQL: {dropViewSQL}")
                 self.engine.execute(dropViewSQL)
                 #create new sql view
+                self.__logger.trace(f"view3CreateSQL: {view3CreateSQL}")
                 self.engine.execute(view3CreateSQL)
 
             except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError) as er:
@@ -252,8 +365,9 @@ class CCDW_Export:
 
     # executeSQL_MERGE() - Creates SQL Code based on current Table/Dataframe by using a Template then pushes to History
     @logger.catch
-    def __executeSQL_MERGE( self, sqlName, df ):
-        
+    def __executeSQL_MERGE( self, sqlName, df, Audit_Key ):
+        records = 0
+
         # Get a list of all the keys for this table
         TableKeys = list(self.keyList.keys()) 
 
@@ -271,15 +385,16 @@ class CCDW_Export:
         TableColumns = list(blankFrame.columns) 
         
         # Add three History columns to blankFrame
+        blankFrame["Audit_Key"] = Audit_Key
         blankFrame["EffectiveDatetime"] = ""
         blankFrame["ExpirationDatetime"] = ""
         blankFrame["CurrentFlag"] = ""
         
         # Add three History column types to dataTypesDict
         blankTyper = self.dataTypes
-        blankTyper["EffectiveDatetime"] = sqlalchemy.types.DateTime()
-        blankTyper["ExpirationDatetime"] = sqlalchemy.types.DateTime()
-        blankTyper["CurrentFlag"] = sqlalchemy.types.String(1)
+        #blankTyper["EffectiveDatetime"] = sqlalchemy.types.DateTime()
+        #blankTyper["ExpirationDatetime"] = sqlalchemy.types.DateTime()
+        #blankTyper["CurrentFlag"] = sqlalchemy.types.String(1)
 
         self.df_columns = blankFrame.columns
 
@@ -316,6 +431,7 @@ class CCDW_Export:
                                      "TableKey_Type" : self.sqlTypes[key]
                                     }
                         alterTableKeyColumnSQL = self.alterTableKeyColumnTemplate.substitute(flds_keys)
+                        self.__logger.trace(f"alterTableKeyColumnSQL: {alterTableKeyColumnSQL}")
                         self.engine.execute(alterTableKeyColumnSQL)
 
                     flds_keys = {"TableSchema"   : self.sql_schema_history,
@@ -324,6 +440,7 @@ class CCDW_Export:
                                  "TableKey_Type" : self.sqlTypes["EffectiveDatetime"]
                                 }
                     alterTableKeyColumnSQL = self.alterTableKeyColumnTemplate.substitute(flds_keys)
+                    self.__logger.trace(f"alterTableKeyColumnSQL: {alterTableKeyColumnSQL}")
                     self.engine.execute(alterTableKeyColumnSQL)
 
                     flds_pk = {"TableSchema_DEST" : self.sql_schema_history,
@@ -333,6 +450,7 @@ class CCDW_Export:
                               }
                     
                     alterTableKeysSQL = self.alterTableKeysTemplate.substitute(flds_pk)
+                    self.__logger.trace(f"alterTableKeysSQL: {alterTableKeysSQL}")
                     self.engine.execute(alterTableKeysSQL)
 
                 except:
@@ -373,12 +491,14 @@ class CCDW_Export:
 
                 self.__logger.debug(f"--Creating History View {self.sql_schema_history}.{flds['ViewName']} (dropping if exists)")
                 #drop sql view if exits
+                self.__logger.trace(f"dropViewSQL: {dropViewSQL}")
                 self.engine.execute(dropViewSQL)
 
                 self.__logger.debug(f"View {self.sql_schema_history}.{flds['ViewName']} DDL:")
                 self.__logger.debug(createViewSQL)
 
                 #create new sql view
+                self.__logger.trace(f"createViewSQL: {createViewSQL}")
                 self.engine.execute(createViewSQL)
 
             except:
@@ -454,7 +574,9 @@ class CCDW_Export:
 
                     self.__logger.debug(f"--Creating History View2 {self.sql_schema_history}.{view2_Str} (dropping if exists)")
                     #drop sql view if exits
+                    self.__logger.trace(f"dropViewSQL: {dropViewSQL}")
                     self.engine.execute(dropViewSQL)
+                    self.__logger.trace(f"createView2SQL: {createView2SQL}")
                     self.engine.execute(createView2SQL)
 
             except:
@@ -490,6 +612,7 @@ class CCDW_Export:
                 "TableColumns2_SRC"    : ", ".join(f"SRC.[{c}]" for c in TableColumns),
                 "TableColumns2_DEST"   : ", ".join(f"DEST.[{c}]" for c in TableColumns),
                 "TableDefaultDate"     : TableDefaultDate,
+                "AuditKey"             : Audit_Key,
                 "viewSchema"           : self.sql_schema_history,
                 "viewName"             : f"{sqlName}_Current",
                 "ViewName2"            : f"{sqlName}_test",
@@ -503,7 +626,14 @@ class CCDW_Export:
         # Attempt to execute generated SQL MERGE code
         try:
             self.__logger.debug("...executing sql command")
-            rtn = self.engine.execute(mergeSCD2SQL)
+            self.__logger.trace(f"mergeSCD2SQL: {mergeSCD2SQL}")
+            self.engine.execute(mergeSCD2SQL)
+
+            rowsSQL = f"SELECT COUNT(*) FROM {self.sql_schema_history}.{sqlName} WHERE Audit_Key={Audit_Key}"
+            conn = self.engine.connect()
+            rtn = conn.execute(rowsSQL)
+            records = rtn.fetchone()[0]
+            conn.close()
 
         except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError, pyodbc.Error, pyodbc.ProgrammingError) as er:
             self.__logger.error(f"---executing sql command - skipped SQL ERROR [{str(er.args[0])}]")
@@ -514,19 +644,21 @@ class CCDW_Export:
             raise
 
         # Deletes Tables from SQL Database if coppied to the history table
-        try:
-            self.__logger.debug("...executing delete command")
+        # try:
+        #     self.__logger.debug("...executing delete command")
 
-            flds_del = {"TableSchema" : self.sql_schema_input, 
-                        "TableName"   : sqlName,
-                    }
-            deleteDataSQL = self.deleteTableDataTemplate.substitute(flds_del)
+        #     flds_del = {"TableSchema" : self.sql_schema_input, 
+        #                 "TableName"   : sqlName,
+        #             }
+        #     deleteDataSQL = self.deleteTableDataTemplate.substitute(flds_del)
+        #     self.__logger.trace(f"deleteDataSQL: {deleteDataSQL}")
+        #     rtn = self.engine.execute(deleteDataSQL)
 
-            rtn = self.engine.execute(deleteDataSQL)
-
-        except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError, pyodbc.Error, pyodbc.ProgrammingError) as er:
-            self.__logger.error(f"---executing DELETE command - skipped SQL ERROR [{str(er.args[0])}]")
-            self.__logger.exception(f"Error in File: \t {sqlName}\n\n Error: {er}\n\n\n")
-            raise
+        # except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError, pyodbc.Error, pyodbc.ProgrammingError) as er:
+        #     self.__logger.error(f"---executing DELETE command - skipped SQL ERROR [{str(er.args[0])}]")
+        #     self.__logger.exception(f"Error in File: \t {sqlName}\n\n Error: {er}\n\n\n")
+        #     raise
 
         self.__logger.debug("....wrote to history")
+
+        return(records)

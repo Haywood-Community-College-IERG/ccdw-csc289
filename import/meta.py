@@ -10,17 +10,18 @@ import glob
 #import export
 from loguru import logger
 import sqlalchemy
+from sqlalchemy.dialects import mssql
 
 #import functools
 
 class CCDW_Meta:
     __lookuplist = None
-    __cfg = []
+    __cfg = {}
     __logger = None
 
-    def __init__( self, cfg, logger ):
+    def __init__( self, cfg ):
         self.__cfg = cfg.copy()
-        self.__logger = logger
+        self.__logger = self.__cfg['__local']['logger']
 
         self.loadLookupList( cfg )
 
@@ -115,27 +116,41 @@ class CCDW_Meta:
                 sqlType[index] = f"VARCHAR(MAX)"
 
             elif fieldDataType in ['S','U','',None]:
-                dataType[index] = sqlalchemy.types.String(dataLength[index])
+                dataType[index] = mssql.VARCHAR(dataLength[index])
                 sqlType[index] = f"VARCHAR({dataLength[index]})"
 
             elif fieldDataType == 'T':
-                dataType[index] = sqlalchemy.types.Time()
+                dataType[index] = mssql.TIME
                 sqlType[index] = "TIME"
 
             elif fieldDataType == 'N':
-                dataType[index] = sqlalchemy.types.Numeric(int(dataLength[index]),dataDecimalLength[index])
-                sqlType[index] = f"NUMERIC({int(dataLength[index])},{dataDecimalLength[index]})"
+                if dataDecimalLength[index] and dataDecimalLength[index] != '0':
+                    dataType[index] = mssql.NUMERIC(int(dataLength[index]),int(dataDecimalLength[index]))
+                    sqlType[index] = f"NUMERIC({dataLength[index]},{dataDecimalLength[index]})"
+                else:
+                    if int(dataLength[index]) <= 2:
+                        dataType[index] = mssql.TINYINT
+                        sqlType[index] = "TINYINT"
+                    elif int(dataLength[index]) <= 4:
+                        dataType[index] = mssql.SMALLINT
+                        sqlType[index] = "SMALLINT"
+                    elif int(dataLength[index]) <= 9:
+                        dataType[index] = mssql.INTEGER
+                        sqlType[index] = "INTEGER"
+                    else:
+                        dataType[index] = mssql.BIGINT
+                        sqlType[index] = "BIGINT"
 
             elif fieldDataType == 'D':
-                dataType[index] = sqlalchemy.types.Date()
+                dataType[index] = mssql.DATE
                 sqlType[index] = "DATE"
 
             elif fieldDataType == "DT":
-                dataType[index] = sqlalchemy.types.DateTime()
+                dataType[index] = mssql.DATETIME
                 sqlType[index] = "DATETIME"
 
             else:
-                dataType[index] = sqlalchemy.types.String(None)
+                dataType[index] = mssql.VARCHAR(None)
                 sqlType[index] = "VARCHAR(MAX)"
 
         keyList = dict(list(zip(fieldNames,usageType)))

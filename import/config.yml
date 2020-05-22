@@ -29,8 +29,11 @@ sql:
   # Schema in above database where local tables, including configuration, will be uploaded
   schema_local: local
 
-# Schema in above database where final data wharehouse data will be uploaded
+  # Schema in above database where final data wharehouse data will be uploaded
   schema_ccdw: ccdw
+
+  # Schema in above database where audit data will be uploaded
+  schema_audit: dw_dim
 
   # Template file names for create, merge, and alter table statements
   merge_scd1: ../templates/SQL_MERGE_TEMPLATE_SCD1.sql
@@ -50,6 +53,8 @@ sql:
   alter_table_key_column: ../templates/SQL_ALTER_PRIMARY_KEY_COLUMN_TEMPLATE.sql
   alter_table_add: ../templates/SQL_ALTER_ADD_TEMPLATE.sql
   alter_table_column: ../templates/SQL_ALTER_COLUMN_TEMPLATE.sql
+  audit_create_record: ../templates/SQL_INSERT_AUDIT_TEMPLATE.sql
+  audit_update_record: ../templates/SQL_UPDATE_AUDIT_TEMPLATE.sql
 
 # Define informer specific parameters
 informer:
@@ -65,7 +70,7 @@ informer:
   # Prefix for all informer reports
   prefix: DW_
   # The latest version of reports that appear in the above location
-  latest_version: 1002
+  latest_version: 1004
 
 ccdw:
   ccdw_path: .
