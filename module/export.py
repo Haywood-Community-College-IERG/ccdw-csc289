@@ -18,6 +18,7 @@ import numpy as np
 from loguru import logger
 from pathlib import Path
 
+from module.exceptions import FileValidationError
 from module.meta import MetaObject
 
 from typing import TypeVar
@@ -217,12 +218,15 @@ class CCDW_Export:
         self.svr_columns_history = self.LoadServerColumnMetadata(sqlName,schema=self.sql_schema_history)
         self.df_columns = list(df.columns)
 
-        self.keyList, \
-        self.dataTypes, \
-        self.sqlTypes, \
-        self.dataTypeMV, \
-        self.elementAssocTypes, \
-        self.elementAssocNames = self.__meta.getDataTypes(columns=self.df_columns)
+        try:
+            self.keyList, \
+            self.dataTypes, \
+            self.sqlTypes, \
+            self.dataTypeMV, \
+            self.elementAssocTypes, \
+            self.elementAssocNames = self.__meta.getDataTypes(columns=self.df_columns)
+        except:
+            raise
 
         try:
             self.__executeSQL_INSERT( sqlName, df ) 
@@ -323,7 +327,7 @@ class CCDW_Export:
             self.__logger.debug("No new columns")
             return()
         else:
-            self.__logger.debug(f"Newnames = {newnames}")
+            self.__logger.info(f"New column names = {newnames}")
 
         #attemp to create a dataframe and string of columns that need to be added to SQL Server
         try:

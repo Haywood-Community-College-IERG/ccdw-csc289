@@ -1,3 +1,3 @@
 @ECHO OFF
 SET PTH="%~dp0"
-"C:\Python\Python38\python.exe" .\ccdw.py --path="%~dp0" --nodb %*
+"C:\Python\Miniconda3\python.exe" .\ccdw.py --path="%~dp0" --nodb %*

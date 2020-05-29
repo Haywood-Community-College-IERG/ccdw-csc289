@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from loguru import logger
 
 # Import other local packages
+from module.exceptions import FileValidationError
 from module.config import load_cfg
 from module.meta import CCDW_Meta, MetaObject
 from module.export import CCDW_Export
@@ -211,6 +212,10 @@ def ccdw() -> None:
                                 else:
                                     records += table_records
 
+                        except FileValidationError as er:
+                            logger.error(f"Source: {er.source}, Validation: {er.validation}")
+                            error_flag = 'Y'
+
                         except:
                             logger.error(f"---Error in file: {fn}")
                             error_flag = 'Y'
@@ -298,6 +303,11 @@ def ccdw() -> None:
                                 records = exportObj.executeSQL_UPDATE( sqlName, df, Audit_Key ) 
 
                                 logger.debug(f"{timestamp()} SQL_UPDATE: {file} with {records} rows [DONE]")
+
+                            except FileValidationError as er:
+                                logger.error(f"Source: {er.source}, Validation: {er.validation}")
+                                error_flag = 'Y'
+
                             except:
                                 logger.error(f"'---Error in file: {file} -- the folder will be skipped")
                                 error_flag = 'Y'

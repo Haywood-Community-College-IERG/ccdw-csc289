@@ -8,6 +8,8 @@ import sqlalchemy
 from sqlalchemy.dialects import mssql
 from typing import TypeVar, List, Tuple, Dict
 
+from module.exceptions import FileValidationError
+
 MetaObject = TypeVar('MetaObject')
 
 class CCDW_Meta:
@@ -56,7 +58,7 @@ class CCDW_Meta:
         keys.reset_index(inplace=True)
         return(list(keys["DATA.ELEMENT"]))
 
-    @logger.catch
+    @logger.catch(exclude=FileValidationError)
     def getDataTypes(self, file: str = "", columns: List[str] = []) -> Tuple[Dict[str,str],Dict[str,str],Dict[str,str],Dict[str,str],Dict[str,str],Dict[str,str]]:
 
         src_file = file.replace('_','.')
@@ -70,7 +72,12 @@ class CCDW_Meta:
                 all_columns.extend(list(dtLookuplist_ccdw.index))
                 all_columns = sorted([*{*all_columns}])
 
-                dtLookuplist = self._CCDW_Meta__lookuplist.loc[all_columns]
+                missing_columns = list(set(all_columns) - set(self._CCDW_Meta__lookuplist.index))
+
+                if not missing_columns:
+                    dtLookuplist = self._CCDW_Meta__lookuplist.loc[all_columns]
+                else:
+                    raise(FileValidationError(source="getDataTypes", validation=f"Missing columns: {missing_columns}"))
             else:
                 dtLookuplist = self._CCDW_Meta__lookuplist
 
