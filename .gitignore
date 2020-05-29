@@ -240,9 +240,6 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
-/import/log/log*
-# /import/config.yml
-/import/output.txt
 _Archive.zip
 /archive/*
 !/archive/*.md
@@ -251,7 +248,10 @@ _Archive.zip
 /data___wStatus
 /diffs
 /diffs_SAV
+error/*
 /error/*
+zip/*
+/zip/*
 /!error/*.md
 /temp
 /data_old

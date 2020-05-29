@@ -1,4 +1,4 @@
-USE CCDW
+USE IERG
 GO
 
 CREATE SCHEMA dw_util

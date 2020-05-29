@@ -1,1 +1,0 @@
-L:\IERG\Python\Miniconda3\python.exe import.py --nodb

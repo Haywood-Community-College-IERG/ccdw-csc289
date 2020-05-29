@@ -1,4 +1,4 @@
-USE CCDW
+USE CCDW_HIST
 GO
 
 CREATE OR ALTER FUNCTION [dw_util].[DelimitedSplit8K]

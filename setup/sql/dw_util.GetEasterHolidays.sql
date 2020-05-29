@@ -1,4 +1,4 @@
-USE CCDW
+USE CCDW_HIST
 GO 
 
 IF OBJECT_ID (N'dw_util.GetEasterHolidays', N'IF') IS NOT NULL  

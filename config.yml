@@ -1,0 +1,105 @@
+ # Define school specific parameters
+school:
+  name: Your School Name
+  abbrev: YSN
+  ipeds: 0000000
+  fice: 000000
+  usgov: 00000
+  ncccs: 000
+  instid: 0000000
+  inststate: ST
+  instcountry: CN
+
+# Define database specific parameters
+sql:
+  # Name of the database server
+  server: localhost
+  # Name of the database on the above server
+  db: CCDW_HIST
+  # Driver for ODBC connections
+  driver: ODBC Driver 17 for SQL Server
+
+  ###
+  ### You should not have to change the following items in this section
+  ###
+  
+  # Schema in above database where loaded data will be uploaded
+  schema_input: input
+  # Schema in above database where loaded data will be moved to history
+  schema_history: history
+  
+  # Schema in above database where local tables, including configuration, will be uploaded
+  schema_local: local
+
+  # Schema in above database where final data wharehouse data will be uploaded
+  schema_ccdw: ccdw
+
+  # Schema in above database where audit data will be uploaded
+  schema_audit: dw_dim
+
+  # Template file names for create, merge, and alter table statements
+  merge_scd1: ./templates/sql/SQL_MERGE_TEMPLATE_SCD1.sql
+  merge_scd2: ./templates/sql/SQL_MERGE_TEMPLATE_SCD2.sql
+  add_Columns: ./templates/sql/SQL_ALTER_TEMPLATE.sql
+  drop_view: ./templates/sql/SQL_DROP_VIEW_TEMPLATE.sql 
+  delete_table_data: ./templates/sql/SQL_DELETE_TABLE_DATA_TEMPLATE.sql
+  view_create: ./templates/sql/SQL_VIEW_TEMPLATE.sql
+  view2_create: ./templates/sql/SQL_VIEW2_TEMPLATE.sql
+  view2_cast: ./templates/sql/SQL_VIEW2_CAST_TEMPLATE.sql
+  view2_crossapply: ./templates/sql/SQL_VIEW2_CROSSAPPLY_TEMPLATE.sql
+  view2_whereand: ./templates/sql/SQL_VIEW2_WHEREAND_TEMPLATE.sql
+  view3_create: ./templates/sql/SQL_VIEW3_TEMPLATE.sql
+  table_names: ./templates/sql/SQL_TABLE_NAMES_TEMPLATE.sql
+  table_column_names: ./templates/sql/SQL_TABLE_COLUMN_NAMES_TEMPLATE.sql
+  alter_table_keys: ./templates/sql/SQL_ALTER_PRIMARY_KEY_TEMPLATE.sql
+  alter_table_key_column: ./templates/sql/SQL_ALTER_PRIMARY_KEY_COLUMN_TEMPLATE.sql
+  alter_table_add: ./templates/sql/SQL_ALTER_ADD_TEMPLATE.sql
+  alter_table_column: ./templates/sql/SQL_ALTER_COLUMN_TEMPLATE.sql
+  audit_create_record: ./templates/sql/SQL_INSERT_AUDIT_TEMPLATE.sql
+  audit_update_record: ./templates/sql/SQL_UPDATE_AUDIT_TEMPLATE.sql
+
+# Define informer specific parameters
+informer:
+  export_path: ./data/
+  export_path_wStatus: ./data___wStatus/
+  export_path_meta: ./meta/
+
+  ###
+  ### You should not have to change the following items in this section
+  ###
+  
+  # Prefix for all informer reports
+  prefix: DW_
+  # The latest version of reports that appear in the above location
+  latest_version: 1004
+
+ccdw:
+  log_path: ./log/
+
+  # Paths for output and archive files
+  archive_path: ./archive/import/
+  archive_path_wStatus: ./archive/wStatus/
+  invalid_path_wStatus: ./archive/wStatus_INVALID/
+  archive_type: move # Can be move or zip
+
+  error_path: ./error/
+  error_output: true
+  
+  ###
+  ### You should not have to change the following items in this section
+  ###
+
+  log_level: debug
+  meta_custom: ./META__CUSTOM_CDD.csv
+
+status_fields: 
+  ACAD_PROGRAMS        : ['ACPG.STATUS', 'ACPG.STATUS.DATE']
+  APPLICATIONS         : ['APPL.STATUS', 'APPL.STATUS.DATE', 'APPL.STATUS.TIME']
+  COURSES              : ['CRS.STATUS',  'CRS.STATUS.DATE']
+  STUDENT_ACAD_CRED    : ['STC.STATUS',  'STC.STATUS.DATE',  'STC.STATUS.TIME', 'STC.STATUS.REASON']
+  STUDENT_PROGRAMS     : ['STPR.STATUS', 'STPR.STATUS.DATE', 'STPR.STATUS.CHGOPR']
+  STUDENT_TERMS        : ['STTR.STATUS', 'STTR.STATUS.DATE']
+  XCC_ACAD_PROG_REQMTS : ['XCCAPR.STATUS', 'XCCAPR.STATUS.DATE']
+
+config:
+  location: self

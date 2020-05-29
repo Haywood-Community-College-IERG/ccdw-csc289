@@ -17,7 +17,7 @@
  *                        to allow reporting on Fall, Spring, Summer. The 
  *                        non-FSS fields are Summer, Fall, Spring
  * -------------------------------------------------------- */
-USE CCDW
+USE CCDW_HIST
 GO 
 
 SET ANSI_NULLS ON

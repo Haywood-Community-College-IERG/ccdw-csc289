@@ -1,4 +1,4 @@
-USE CCDW
+USE CCDW_HIST
 GO
 
 CREATE SCHEMA base_history
