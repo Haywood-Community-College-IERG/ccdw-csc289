@@ -364,7 +364,7 @@ class CCDW_Export:
         except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError) as er:
             self.__logger.error(f"-Error Updating Columns in SQL Table - [{str(er.args[0])}]")
             self.__logger.exception(f"Error in File: \t {sqlName}\n\n Error:{er}\n\n")
-            ef = open(f"MergeError_{sqlName}.sql", 'w')
+            ef = open(f"AlterError_{schema}.{sqlName}.sql", 'w')
             ef.write(alterTableSQL)
             ef.close()
             raise
@@ -599,7 +599,8 @@ class CCDW_Export:
 
             except:
                 self.__logger.exception("Creating View2 failed")
-                ef = open(f"View2Error_{view2_Str}.sql", 'w')
+                fpath = Path(self.error_path) / f"View2Error_{view2_Str}.sql"
+                ef = open(fpath, 'w')
                 ef.write(createView2SQL)
                 ef.close()
                 raise
@@ -656,7 +657,7 @@ class CCDW_Export:
         except (exc.SQLAlchemyError, exc.DBAPIError, exc.ProgrammingError, pyodbc.Error, pyodbc.ProgrammingError) as er:
             self.__logger.error(f"---executing sql command - skipped SQL ERROR [{str(er.args[0])}]")
             self.__logger.exception(f"Error in File: \t {sqlName}\n\n Error: {er}\n\n\n")
-            ef = open(Path(self.error_path) / f"MergeError_{sqlName}.sql", 'w')
+            ef = open(Path(self.error_path) / f"MergeError_{self.sql_schema_history}.{sqlName}.sql", 'w')
             ef.write(mergeSCD2SQL)
             ef.close()
             ef_name = Path(self.error_path) / f"MergeError_{self.sql_schema_history}.{sqlName}.csv"

@@ -1,3 +1,4 @@
+#! /usr/bin/python3
 import sys
 import os
 from pathlib import Path
@@ -150,7 +151,7 @@ def ccdw() -> None:
                     error_flag = 'N'
 
                     # Read the file in and get the keys for this file
-                    df = pd.read_csv(csvinput,encoding='ansi',dtype='str',engine='python')
+                    df = pd.read_csv(csvinput, encoding='ansi', dtype='str', engine='python', na_values=None, keep_default_na=False)
                     file_keys = metaObj.getKeyFields(fn.replace('_','.'))
 
                     # Get status and datetime fields for this file
@@ -168,6 +169,7 @@ def ccdw() -> None:
 
                     # If the date field is still blank (i.e., was never provided), set it
                     df[df_status_datetime[0]].fillna("1900-01-01", inplace=True)
+                    df.loc[df[df_status_datetime[0]] == '',df_status_datetime[0]] = "1900-01-01"
 
                     # Create a new DataDatetime field using the date and time fields.
                     # If the time field is still blank, set it. If it is missing, set it.

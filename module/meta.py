@@ -60,7 +60,87 @@ class CCDW_Meta:
 
     @logger.catch(exclude=FileValidationError)
     def getDataTypes(self, file: str = "", columns: List[str] = []) -> Tuple[Dict[str,str],Dict[str,str],Dict[str,str],Dict[str,str],Dict[str,str],Dict[str,str]]:
+        """
 
+        The following is from the metadata (though the comments on 
+        the actions codes does not appear to be corret as the 
+        2 action codes are always 0). This defines the DATABASE.USAGE.TYPE.
+
+        Action Code 1 tells whether or not the field is actual stored
+        data:
+        D = Data (the field is stored. The CDD record's SOURCE field
+            provides the file name)
+        X = Calculated (not stored) by the process that demands it.
+        I = Calculated (not stored) by the query statement that
+            references it.
+
+        Action Code 2 is either
+        M (multivalued) or
+        S (singlevalued)
+
+        Here is a brief description of each of the data types, along
+        with any restrictions on how it is used or stored:
+
+        A - Assoc (MV)
+        Multivalued stored data element that is associated by
+        value with one or more other multivalued elements.
+        No limit on number of rows in the associated, but
+        each value is limited to the storage width for the field.
+
+        B - Block
+        Multivalued non-file based display element. Usually used
+        for multi-line headers. While this is multi-lined, it
+        is not a scrollable window.
+
+        C - Comments
+        Multivalued stored data element that is designed to store
+        a maximum 1996 characters in all lines, with no more than
+        32,500 characters for all lines.
+
+        D - Data
+        Single valued stored data element
+
+        H - Hook Code
+        Multivalued stored data element that has no limitations on
+        the number of lines or the number of characters on each line.
+
+        I - Computed Column
+        Also known as I-descriptor, and Virtual Field
+
+        K - Key
+        Single valued key to a file
+
+        L - List
+        Multivalued stored data element. There is no limit to the
+        number of lines, but each line is limited to the storage
+        width for the field.
+
+        P - Procedure
+        Single valued element that is not file based. VAR1 is an
+        example.
+
+        Q - MV Pointer
+        Multivalued secondary pointer to the key of a file. Will
+        generate automatic reads of records in that other file so
+        that elements from it can be used.
+
+        S - Synonym
+        Not used at this time
+
+        T - Text
+        Multivalued stored data element. Has a maximum of 1996
+        characters for all lines.
+
+        X - SV Pointer
+        Single valued secondary pointer.
+
+        Note that the values for maximum line and total length are not
+        arbitrary choices, they are limitations of diffent data types in
+        Oracle and PL/SQL. For Unidata the distinction is not really
+        important because of the dynamic nature of files, but in order
+        to maintain compatibility with Oracle we need to keep these limits.
+
+        """
         src_file = file.replace('_','.')
 
         if src_file!='':
@@ -103,11 +183,11 @@ class CCDW_Meta:
 
             if usageType[index] in ['A','Q','L','I','C']:
                 if fieldDataType in ['S','U','',None]:
-                    dtypers = f"VARCHAR({dataLength[index]})"
+                    dtypers = f"VARCHAR({dataLength[index] or 'MAX'})"
                 elif fieldDataType == 'T':
                     dtypers = "TIME"
                 elif fieldDataType == 'N':
-                    dtypers = f"NUMERIC({dataLength[index]}, {dataDecimalLength[index]})"
+                    dtypers = f"NUMERIC({dataLength[index]}, {dataDecimalLength[index] or 0})"
                 elif fieldDataType == 'D':
                     dtypers = "DATE"
                 elif fieldDataType == "DT":
