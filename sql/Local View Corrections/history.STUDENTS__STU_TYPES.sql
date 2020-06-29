@@ -7,6 +7,7 @@
  * Change log: 
  *     20190731 DMO New, based off of existing version
  *                     created by the CCDW import program.
+ *     20200608 DMO Changed dbo.DelimitedSplit8k to dw_util.DelimitedSplit8k.
  *
  * -------------------------------------------------------- */
 --/*
@@ -26,9 +27,9 @@ SELECT [STUDENTS.ID]
      , CA1.ItemNumber AS ItemNumber
      , EffectiveDatetime
   FROM [history].[STUDENTS] 
- CROSS APPLY dbo.DelimitedSplit8K([STU.TYPES], ', ') CA1 
- CROSS APPLY dbo.DelimitedSplit8K([STU.TYPE.DATES], ', ') CA2 
- CROSS APPLY dbo.DelimitedSplit8K([STU.TYPE.END.DATES], ', ') CA3
+ CROSS APPLY dw_util.DelimitedSplit8K([STU.TYPES], ', ') CA1 
+ CROSS APPLY dw_util.DelimitedSplit8K([STU.TYPE.DATES], ', ') CA2 
+ CROSS APPLY dw_util.DelimitedSplit8K([STU.TYPE.END.DATES], ', ') CA3
  WHERE COALESCE ([STU.TYPES], '') != '' 
    AND CA1.ItemNumber = CA2.ItemNumber 
    AND CA1.ItemNumber = CA3.ItemNumber

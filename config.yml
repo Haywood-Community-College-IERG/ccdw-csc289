@@ -51,10 +51,10 @@ sql:
   view3_create: ./templates/sql/SQL_VIEW3_TEMPLATE.sql
   table_names: ./templates/sql/SQL_TABLE_NAMES_TEMPLATE.sql
   table_column_names: ./templates/sql/SQL_TABLE_COLUMN_NAMES_TEMPLATE.sql
-  alter_table_keys: ./templates/sql/SQL_ALTER_PRIMARY_KEY_TEMPLATE.sql
-  alter_table_key_column: ./templates/sql/SQL_ALTER_PRIMARY_KEY_COLUMN_TEMPLATE.sql
+  alter_table_keys: ./templates/sql/SQL_ALTER_TABLE_KEYS_TEMPLATE.sql
+  alter_table_key_column: ./templates/sql/SQL_ALTER_TABLE_KEY_COLUMN_TEMPLATE.sql
   alter_table_add: ./templates/sql/SQL_ALTER_ADD_TEMPLATE.sql
-  alter_table_column: ./templates/sql/SQL_ALTER_COLUMN_TEMPLATE.sql
+  alter_table_column: ./templates/sql/SQL_ALTER_TABLE_COLUMN_TEMPLATE.sql
   audit_create_record: ./templates/sql/SQL_INSERT_AUDIT_TEMPLATE.sql
   audit_update_record: ./templates/sql/SQL_UPDATE_AUDIT_TEMPLATE.sql
 

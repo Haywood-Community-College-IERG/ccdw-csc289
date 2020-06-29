@@ -53,7 +53,7 @@ class CCDW_Export:
     viewCreateTemplate = ""
     alterTableKeyColumnTemplate = ""
     alterTableKeysTemplate = ""
-    alterTableTemplate = ""
+    alterTableColumnTemplate = ""
     view2CastTemplate = ""
     view2CrossApplyTemplate = ""
     view2WhereAndTemplate = ""
@@ -88,7 +88,7 @@ class CCDW_Export:
         self.viewCreateTemplate = self.LoadTemplate( "view_create" )
         self.alterTableKeyColumnTemplate = self.LoadTemplate( "alter_table_key_column" )
         self.alterTableKeysTemplate = self.LoadTemplate( "alter_table_keys" )
-        self.alterTableTemplate = self.LoadTemplate( "alter_table_column" )
+        self.alterTableColumnTemplate = self.LoadTemplate( "alter_table_column" )
         self.view2CastTemplate = self.LoadTemplate( "view2_cast" )
         self.view2CrossApplyTemplate = self.LoadTemplate( "view2_crossapply" )
         self.view2WhereAndTemplate = self.LoadTemplate( "view2_whereand" )
@@ -348,7 +348,7 @@ class CCDW_Export:
                 "ViewSchema"           : self.sql_schema_history
             }
 
-        alterTableSQL = self.alterTableTemplate.substitute(flds)
+        alterTableSQL = self.alterTableColumnTemplate.substitute(flds)
         view3CreateSQL = self.view3CreateTemplate.substitute(flds)
         dropViewSQL = self.dropViewTemplate.substitute(flds)
 
@@ -369,7 +369,7 @@ class CCDW_Export:
             ef.close()
             raise
 
-        if (updateColumns):
+        if (updateColumns) and (schema == self.sql_schema_history):
             try:
                 self.__logger.debug("----Creating Current View")
                 #drop sql view if exits
@@ -500,7 +500,7 @@ class CCDW_Export:
                     "ViewName2"            : f"{sqlName}_test",
                     "pkName"               : f"pk_{sqlName}",
                     "primaryKeys"          : ", ".join(f"[{k}]" for k in self.keyList),
-                    "ViewColumns"          : ", ".join(f"[{c}]" for c in TableColumns)
+                    "ViewColumns"          : ", ".join(f"[{c}]" for c in self.df_columns)
             }
 
             try:
@@ -637,7 +637,7 @@ class CCDW_Export:
                 "ViewName2"            : f"{sqlName}_test",
                 "pkName"               : f"pk_{sqlName}",
                 "primaryKeys"          : ", ".join(f"[{k}]" for k in self.keyList),
-                "viewColumns"          : ", ".join(f"[{c}]" for c in TableColumns)
+                "viewColumns"          : ", ".join(f"[{c}]" for c in self.df_columns)
         }
 
         mergeSCD2SQL = self.mergeSCD2Template.substitute(flds)

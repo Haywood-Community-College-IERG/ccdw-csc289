@@ -8,7 +8,7 @@ CREATE VIEW history.[STUDENT_EQUIV_EVALS__STUDENT_ACAD_CRED] AS
          , CA1.ItemNumber AS ItemNumber
          , EffectiveDatetime
       FROM [history].[STUDENT_EQUIV_EVALS] 
-     CROSS APPLY dbo.DelimitedSplit8K([STE.STUDENT.ACAD.CRED], ', ') CA1 
+     CROSS APPLY dw_util.DelimitedSplit8K([STE.STUDENT.ACAD.CRED], ', ') CA1 
      WHERE COALESCE ([STE.STUDENT.ACAD.CRED], '') != '' 
      --  AND CA1.ItemNumber = CA2.ItemNumber 
      
