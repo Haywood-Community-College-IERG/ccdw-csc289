@@ -246,6 +246,10 @@ USER.ACPG.PERFORMANCE_INDICATOR_PROGRAM_AREA_DESC,,,,,,250,,,,,,,,,,,,,,,,,,,,AC
 USER.ACPG.PROGRAM_AREA_CODE,,,,,,5,,,,,,,,,,,,,,,,,,,,ACAD_PROGRAMS__USER,,,2020-06-01,CCDW,2020-06-01,CCDW,2020-06-01T00:00:00.000Z
 USER.ACPG.PROGRAM_AREA_DESC,,,,,,250,,,,,,,,,,,,,,,,,,,,ACAD_PROGRAMS__USER,,,2020-06-01,CCDW,2020-06-01,CCDW,2020-06-01T00:00:00.000Z
 USER.ACPG.PROGRAMS.ID,,,,K,,10,,,,,,,,,,,,,,,,,,,,ACAD_PROGRAMS__USER,,,2020-06-01,CCDW,2020-06-01,CCDW,2020-06-01T00:00:00.000Z
+"VAL.ACTION.CODE.1","","","","A","N","10","Special Action Code 1","","N","","","","","","","VALS","D","","","3","","10R","50","Special action identified with some codes","","VAL_ACTION_CODES","N","","1986-02-27","RGH","","","2020-06-01T17:05:25.290Z"
+"VAL.ACTION.CODE.2","","","","A","N","10","Special Action Code 2","","N","","","","","","","VALS","D","","","5","","10R","30","Second action code when needed by a particular code","Action Code 2","VAL_ACTION_CODES","N","","1986-03-04","RGH","","","2020-06-01T17:05:25.290Z"
+"VAL.ACTION.CODE.3","","","","A","N","10","","","N","","","","","","","VALS","D","","","6","","10R","30","Special action identified with some codes","","VAL_ACTION_CODES","N","","1986-02-27","RGH","","","2020-06-01T17:05:25.306Z"
+"VAL.ACTION.CODE.4","","","","A","N","10","","","N","","","","","","","VALS","D","","","7","","10R","30","Special action identified with some codes","","VAL_ACTION_CODES","N","","1986-02-27","RGH","","","2020-06-01T17:05:25.306Z"
 VALCODE.ID,,,,K,N,35,Validation Code ID,,N,,,,,,,,,,,0,,32L,40,Type of validation/translation code to place in the system,,VALCODES,N,,2020-06-01,CCDW,2020-06-01,CCDW,2020-06-01T00:00:00.000Z
 VALIDATION.TABLE,,,,D,,200,Validate/Translate Table,,,,,,,,,,,,,39,,50L,250,Validation/translate table reference,,TOOLCDD,,,2020-06-01,CCDW,2020-06-01,CCDW,2020-06-01T00:00:00.000Z
 VETERAN.TYPE.DESCRIPTION,,,,,,200,,,,,,,,,,,,,,,,,,,,PERSON,,,2020-06-01,CCDW,2020-06-01,CCDW,2020-06-01T00:00:00.000Z

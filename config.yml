@@ -1,14 +1,15 @@
  # Define school specific parameters
 school:
-  name: Your School Name
-  abbrev: YSN
-  ipeds: 0000000
-  fice: 000000
-  usgov: 00000
-  ncccs: 000
-  instid: 0000000
-  inststate: ST
-  instcountry: CN
+  name: Haywood Community College
+  abbrev: HCC
+  ipeds: 198668
+  fice: "008083"
+  usgov: 37087
+  ncccs: 842
+  instid: 0019844
+  inststate: NC
+  instcountry: US
+  branch: "00"
 
 # Define database specific parameters
 sql:
@@ -64,6 +65,8 @@ informer:
   export_path_wStatus: ./data___wStatus/
   export_path_meta: ./meta/
 
+  stage_path: ./data_stage/
+  
   ###
   ### You should not have to change the following items in this section
   ###

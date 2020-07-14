@@ -63,7 +63,9 @@ WITH t AS (
                  ELSE NULL END AS Corresponding_Term
     FROM dw_dim.Date dd
     WHERE dd.CE_Term_ID <> 'None'
-)
+      AND CASE WHEN dd.CE_Term_Index LIKE '19__6' AND dd.CE_Term_Index < '19956' AND CONCAT_WS('-',dd.CE_Reporting_Year_FSS,SUBSTRING(dd.CE_Term_ID, 1, 4)) = dd.CE_Reporting_Academic_Year THEN 1
+               WHEN dd.CE_Term_Index LIKE '19__6' AND dd.CE_Term_Index < '19956' THEN 0
+               ELSE 1 END = 1)
 SELECT t.*
      , COALESCE(
             SUM(1) OVER (
