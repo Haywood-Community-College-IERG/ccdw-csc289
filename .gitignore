@@ -271,3 +271,8 @@ import/.vscode/settings.json
 /data_stage
 /data_stage_OLD
 /log/*
+all_meta.xlsx
+all_meta-no-custom.csv
+all_meta-no-custom.xlsx
+all_meta-with-custom.csv
+all_meta-with-custom.xlsx
